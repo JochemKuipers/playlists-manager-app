@@ -297,10 +297,37 @@ function isForeignRemixer(
   );
 }
 
+/** Remixer or another credited (non-owner) artist matches a followed artist. */
+function followedWhitelistHit(
+  remixer: string | null,
+  credits: string[],
+  ownerArtists: string[],
+  followedArtists: string[],
+): string | null {
+  if (followedArtists.length === 0) return null;
+
+  if (
+    remixer &&
+    followedArtists.some((followed) => artistNamesMatch(followed, remixer))
+  ) {
+    return remixer;
+  }
+
+  for (const credit of credits) {
+    if (ownerArtists.some((owner) => artistNamesEqual(owner, credit))) continue;
+    if (followedArtists.some((followed) => artistNamesMatch(followed, credit))) {
+      return credit;
+    }
+  }
+
+  return null;
+}
+
 async function evaluateRemixJunk(
   track: FilterableTrack,
   ownerArtists: string[],
   cache?: Map<string, OriginalTrack | null>,
+  followedArtists: string[] = [],
 ): Promise<JunkVerdict> {
   const credits = creditNames(track.artists);
   const remixer = parseRemixerName(track.name);
@@ -313,6 +340,22 @@ async function evaluateRemixJunk(
     return {
       junk: false,
       reason: "remixer is owner artist",
+      category: "remix",
+      original: null,
+    };
+  }
+
+  // Followed remixer / co-artist → whitelist
+  const followedHit = followedWhitelistHit(
+    remixer,
+    credits,
+    ownerArtists,
+    followedArtists,
+  );
+  if (followedHit) {
+    return {
+      junk: false,
+      reason: `followed artist whitelist (${followedHit})`,
       category: "remix",
       original: null,
     };
@@ -394,6 +437,7 @@ export async function evaluateJunkTrack(
   options?: {
     cache?: Map<string, OriginalTrack | null>;
     compiledPatterns?: CompiledPattern[];
+    followedArtists?: string[];
   },
 ): Promise<JunkVerdict> {
   const album = track.albumName ?? "";
@@ -429,7 +473,12 @@ export async function evaluateJunkTrack(
   }
 
   if (settings.skipDjRemixes && isRemixTitle(track.name)) {
-    return evaluateRemixJunk(track, ownerArtists, options?.cache);
+    return evaluateRemixJunk(
+      track,
+      ownerArtists,
+      options?.cache,
+      options?.followedArtists ?? [],
+    );
   }
 
   return {

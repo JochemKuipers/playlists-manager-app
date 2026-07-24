@@ -1,4 +1,5 @@
 import { getArtistTracks, searchArtist } from "@/api/graphql";
+import { fetchFollowedArtistNames } from "@/api/following";
 import {
   addTracksToPlaylist,
   fetchPlaylistTracks,
@@ -132,6 +133,15 @@ export async function updatePlaylist(
     const settings = loadIgnoreSettings();
     const cache = createOriginalCache();
     const compiledPatterns = compilePatterns(settings.customPatterns);
+    const followedArtists = settings.skipDjRemixes
+      ? await fetchFollowedArtistNames()
+      : [];
+    if (followedArtists.length > 0) {
+      emit(
+        `Loaded ${followedArtists.length} followed artist(s) for remix whitelist`,
+        "info",
+      );
+    }
 
     emit(
       `Filtering ${candidates.length} candidate(s) with ignore settings…`,
@@ -151,7 +161,7 @@ export async function updatePlaylist(
         },
         settings,
         artistNames,
-        { cache, compiledPatterns },
+        { cache, compiledPatterns, followedArtists },
       );
     });
 

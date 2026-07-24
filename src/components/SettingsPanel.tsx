@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { fetchFollowedArtistNames } from "@/api/following";
 import { parseArtistsFromTitle } from "@/operations/normalize";
 import {
   evaluateJunkTrack,
@@ -108,6 +109,7 @@ export function SettingsPanel() {
 
     setRemixResult({ status: "loading" });
     try {
+      const followedArtists = await fetchFollowedArtistNames();
       const verdict = await evaluateJunkTrack(
         {
           name: sampleTitle.trim(),
@@ -120,6 +122,7 @@ export function SettingsPanel() {
           skipDjRemixes: true,
         },
         [owner],
+        { followedArtists },
       );
 
       if (!localPreview.looksLikeRemix && verdict.category !== "remix") {
@@ -204,7 +207,7 @@ export function SettingsPanel() {
                 persist({ ...settings, skipDjRemixes: e.target.checked })
               }
             />
-            <span>DJ remixes (compare to original)</span>
+            <span>DJ remixes (keep if remixer/co-artist followed)</span>
           </label>
 
           <div className={styles.settingsBlock}>

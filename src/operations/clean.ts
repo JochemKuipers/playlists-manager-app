@@ -1,3 +1,4 @@
+import { fetchFollowedArtistNames } from "@/api/following";
 import {
   fetchAllLikedSongsTracks,
   removeTracksFromLikedSongs,
@@ -44,6 +45,15 @@ async function collectJunkRemovals(
 
   const cache = createOriginalCache();
   const compiledPatterns = compilePatterns(settings.customPatterns);
+  const followedArtists = settings.skipDjRemixes
+    ? await fetchFollowedArtistNames()
+    : [];
+  if (followedArtists.length > 0) {
+    emit(
+      `Loaded ${followedArtists.length} followed artist(s) for remix whitelist`,
+      "info",
+    );
+  }
 
   emit(
     `Scanning ${tracks.length} track(s) against ignore filters…`,
@@ -63,7 +73,7 @@ async function collectJunkRemovals(
       },
       settings,
       ownerArtistsFor(track),
-      { cache, compiledPatterns },
+      { cache, compiledPatterns, followedArtists },
     );
   });
 
