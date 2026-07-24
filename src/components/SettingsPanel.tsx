@@ -13,6 +13,9 @@ import {
 } from "@/settings";
 import styles from "../css/app.module.scss";
 
+// Spicetify creator bundles with classic JSX (needs React in scope).
+void React;
+
 type RemixResult = {
   status: "idle" | "loading" | "done" | "error";
   verdict?: "keep" | "junk" | "n/a";
@@ -202,6 +205,36 @@ export function SettingsPanel() {
           <label className={styles.toggleRow}>
             <input
               type="checkbox"
+              checked={settings.skipInstrumental}
+              onChange={(e) =>
+                persist({ ...settings, skipInstrumental: e.target.checked })
+              }
+            />
+            <span>Instrumentals</span>
+          </label>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              checked={settings.skipCommentary}
+              onChange={(e) =>
+                persist({ ...settings, skipCommentary: e.target.checked })
+              }
+            />
+            <span>Commentary / interviews</span>
+          </label>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              checked={settings.skipAcapella}
+              onChange={(e) =>
+                persist({ ...settings, skipAcapella: e.target.checked })
+              }
+            />
+            <span>A cappella</span>
+          </label>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
               checked={settings.skipDjRemixes}
               onChange={(e) =>
                 persist({ ...settings, skipDjRemixes: e.target.checked })
@@ -306,6 +339,18 @@ export function SettingsPanel() {
               <div>
                 Sped/slowed:{" "}
                 <strong>{localPreview.sped ? "match" : "no"}</strong>
+              </div>
+              <div>
+                Instrumental:{" "}
+                <strong>{localPreview.instrumental ? "match" : "no"}</strong>
+              </div>
+              <div>
+                Commentary:{" "}
+                <strong>{localPreview.commentary ? "match" : "no"}</strong>
+              </div>
+              <div>
+                A cappella:{" "}
+                <strong>{localPreview.acapella ? "match" : "no"}</strong>
               </div>
               <div>
                 Remix-like:{" "}

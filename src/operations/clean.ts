@@ -21,7 +21,7 @@ import type {
   PlaylistTrack,
   ProgressEvent,
 } from "@/operations/types";
-import { loadIgnoreSettings } from "@/settings";
+import { loadIgnoreSettings, hasAnyIgnoreFilter } from "@/settings";
 import type { ProgressFn } from "./update";
 
 async function collectJunkRemovals(
@@ -35,13 +35,7 @@ async function collectJunkRemovals(
   signal?: AbortSignal,
 ): Promise<{ uri: string; uid?: string }[]> {
   const settings = loadIgnoreSettings();
-  const hasFilters =
-    settings.skipLive ||
-    settings.skipSpedSlowed ||
-    settings.skipDjRemixes ||
-    settings.customPatterns.some((p) => p.trim().length > 0);
-
-  if (!hasFilters) return [];
+  if (!hasAnyIgnoreFilter(settings)) return [];
 
   const cache = createOriginalCache();
   const compiledPatterns = compilePatterns(settings.customPatterns);

@@ -20,7 +20,14 @@ export type OriginalTrack = {
   durationMs: number | null;
 };
 
-export type JunkCategory = "live" | "sped" | "remix" | "custom";
+export type JunkCategory =
+  | "live"
+  | "sped"
+  | "remix"
+  | "instrumental"
+  | "commentary"
+  | "acapella"
+  | "custom";
 
 export type JunkVerdict = {
   junk: boolean;
@@ -42,6 +49,13 @@ const LIVE_PAREN_RE = /[([\-–—]\s*live\b/i;
 
 const SPED_RE =
   /\b(sped\s*up|speed\s*up|slowed(\s*(\+|&|and)\s*reverb)?|slowed\s*down|nightcore|daycore|super\s*slowed)\b/i;
+
+const INSTRUMENTAL_RE =
+  /\b(instrumentals?|karaoke|inst\.?)\b/i;
+const COMMENTARY_RE =
+  /\b(commentary|interview|spoken\s*word|skit)\b/i;
+const ACAPELLA_RE =
+  /\b(a\s*c+ap+ella|acapellas?)\b/i;
 
 const REMIX_PAREN_RE =
   /[([]([^()\]]+?)\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*[)\]]\s*$/i;
@@ -101,6 +115,21 @@ export function isLiveVersion(title: string, albumName = ""): boolean {
 export function isSpedOrSlowed(title: string, albumName = ""): boolean {
   const hay = `${title} ${albumName}`.trim();
   return Boolean(hay) && SPED_RE.test(hay);
+}
+
+export function isInstrumental(title: string, albumName = ""): boolean {
+  const hay = `${title} ${albumName}`.trim();
+  return Boolean(hay) && INSTRUMENTAL_RE.test(hay);
+}
+
+export function isCommentary(title: string, albumName = ""): boolean {
+  const hay = `${title} ${albumName}`.trim();
+  return Boolean(hay) && COMMENTARY_RE.test(hay);
+}
+
+export function isAcapella(title: string, albumName = ""): boolean {
+  const hay = `${title} ${albumName}`.trim();
+  return Boolean(hay) && ACAPELLA_RE.test(hay);
 }
 
 export function isRemixTitle(title: string): boolean {
@@ -462,6 +491,33 @@ export async function evaluateJunkTrack(
     };
   }
 
+  if (settings.skipInstrumental && isInstrumental(track.name, album)) {
+    return {
+      junk: true,
+      reason: "instrumental",
+      category: "instrumental",
+      original: null,
+    };
+  }
+
+  if (settings.skipCommentary && isCommentary(track.name, album)) {
+    return {
+      junk: true,
+      reason: "commentary",
+      category: "commentary",
+      original: null,
+    };
+  }
+
+  if (settings.skipAcapella && isAcapella(track.name, album)) {
+    return {
+      junk: true,
+      reason: "a cappella",
+      category: "acapella",
+      original: null,
+    };
+  }
+
   const customHits = matchCustomPatterns(track.name, album, compiled);
   if (customHits.length > 0) {
     return {
@@ -497,6 +553,9 @@ export function evaluateLocalFilters(
 ): {
   live: boolean;
   sped: boolean;
+  instrumental: boolean;
+  commentary: boolean;
+  acapella: boolean;
   customHits: string[];
   looksLikeRemix: boolean;
 } {
@@ -504,6 +563,9 @@ export function evaluateLocalFilters(
   return {
     live: isLiveVersion(title, albumName),
     sped: isSpedOrSlowed(title, albumName),
+    instrumental: isInstrumental(title, albumName),
+    commentary: isCommentary(title, albumName),
+    acapella: isAcapella(title, albumName),
     customHits: matchCustomPatterns(title, albumName, compiled),
     looksLikeRemix: isRemixTitle(title),
   };
