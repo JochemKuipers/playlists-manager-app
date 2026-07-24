@@ -43,11 +43,22 @@ const LIVE_PAREN_RE = /[([\-–—]\s*live\b/i;
 const SPED_RE =
   /\b(sped\s*up|speed\s*up|slowed(\s*(\+|&|and)\s*reverb)?|slowed\s*down|nightcore|daycore|super\s*slowed)\b/i;
 
-const REMIX_WITH_NAME_RE =
-  /(?:[([]\s*|[-–—]\s*|^|\s)(.+?)\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*[)\]]?\s*$/i;
+const REMIX_PAREN_RE =
+  /[([]([^()\]]+?)\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*[)\]]\s*$/i;
+const REMIX_DASH_RE =
+  /\s*[-–—−‐‑‒―]\s*(.+?)\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*$/i;
 const REMIX_BARE_RE =
-  /(?:[([]\s*|[-–—]\s*)(?:official\s+)?(?:remix|remixed|bootleg|edit)\s*[)\]]?\s*$/i;
+  /(?:[([]\s*|[-–—−‐‑‒―]\s*)(?:official\s+)?(?:remix|remixed|bootleg|edit)\s*[)\]]?\s*$/i;
 const REMIXED_BY_RE = /\bremixed\s+by\s+(.+?)(?:\s*[)\]])?\s*$/i;
+
+/** Normalize dashes/spaces so Spotify title quirks still match. */
+export function normalizeTitleForRemix(title: string): string {
+  return title
+    .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
+    .replace(/[-–—−‐‑‒―]+/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function normalizeArtistName(name: string): string {
   return name
@@ -57,6 +68,13 @@ export function normalizeArtistName(name: string): string {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Exact-ish match for remixer vs owner (avoid loose includes false positives). */
+export function artistNamesEqual(a: string, b: string): boolean {
+  const na = normalizeArtistName(a);
+  const nb = normalizeArtistName(b);
+  return Boolean(na && nb && na === nb);
 }
 
 export function artistNamesMatch(a: string, b: string): boolean {
@@ -86,53 +104,51 @@ export function isSpedOrSlowed(title: string, albumName = ""): boolean {
 }
 
 export function isRemixTitle(title: string): boolean {
+  const t = normalizeTitleForRemix(title);
   return (
-    REMIXED_BY_RE.test(title) ||
-    REMIX_WITH_NAME_RE.test(title) ||
-    REMIX_BARE_RE.test(title) ||
-    /\bremix(ed)?\b/i.test(title)
+    REMIXED_BY_RE.test(t) ||
+    REMIX_PAREN_RE.test(t) ||
+    REMIX_DASH_RE.test(t) ||
+    REMIX_BARE_RE.test(t) ||
+    /\bremix(ed)?\b/i.test(t)
   );
 }
 
-export function parseRemixerName(title: string): string | null {
-  const by = title.match(REMIXED_BY_RE);
-  if (by?.[1]) return by[1].trim();
-
-  const named = title.match(REMIX_WITH_NAME_RE);
-  if (named?.[1]) {
-    const candidate = named[1]
-      .replace(/^(?:official|radio|club|extended|vip)\s+/i, "")
-      .trim();
-    // Bare "Remix" capture often picks trailing junk; reject empty / "the"
-    if (
-      candidate &&
-      !/^(remix|remixed|bootleg|edit|flip|mashup)$/i.test(candidate)
-    ) {
-      return candidate;
-    }
+function cleanRemixerCandidate(raw: string): string | null {
+  const candidate = raw
+    .replace(/^(?:official|radio|club|extended|vip)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (
+    !candidate ||
+    /^(remix|remixed|bootleg|edit|flip|mashup|phonk)$/i.test(candidate)
+  ) {
+    return null;
   }
+  return candidate;
+}
+
+export function parseRemixerName(title: string): string | null {
+  const t = normalizeTitleForRemix(title);
+  const by = t.match(REMIXED_BY_RE);
+  if (by?.[1]) return cleanRemixerCandidate(by[1]);
+
+  // Prefer (...) / [...] suffix so we don't swallow the song title
+  const paren = t.match(REMIX_PAREN_RE);
+  if (paren?.[1]) return cleanRemixerCandidate(paren[1]);
+
+  const dash = t.match(REMIX_DASH_RE);
+  if (dash?.[1]) return cleanRemixerCandidate(dash[1]);
+
   return null;
 }
 
 export function stripRemixSuffix(title: string): string {
-  let cleaned = title;
+  let cleaned = normalizeTitleForRemix(title);
   cleaned = cleaned.replace(REMIXED_BY_RE, "");
-  cleaned = cleaned.replace(
-    /\s*[([]\s*.+?\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*[)\]]\s*$/i,
-    "",
-  );
-  cleaned = cleaned.replace(
-    /\s*[-–—]\s*.+?\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*$/i,
-    "",
-  );
-  cleaned = cleaned.replace(
-    /\s*[([]\s*(?:official\s+)?(?:remix|remixed|bootleg|edit)\s*[)\]]\s*$/i,
-    "",
-  );
-  cleaned = cleaned.replace(
-    /\s*[-–—]\s*(?:official\s+)?(?:remix|remixed|bootleg|edit)\s*$/i,
-    "",
-  );
+  cleaned = cleaned.replace(REMIX_PAREN_RE, "");
+  cleaned = cleaned.replace(REMIX_DASH_RE, "");
+  cleaned = cleaned.replace(REMIX_BARE_RE, "");
   return cleaned.replace(/\s+/g, " ").trim() || title.trim();
 }
 
@@ -235,17 +251,22 @@ function pickBestOriginal(
 export async function resolveOriginalTrack(
   remix: FilterableTrack,
   cache?: Map<string, OriginalTrack | null>,
+  ownerArtists: string[] = [],
 ): Promise<OriginalTrack | null> {
   const cleanedTitle = stripRemixSuffix(remix.name);
   const credits = creditNames(remix.artists);
   const remixer = parseRemixerName(remix.name);
-  const searchArtists = credits.filter(
+  const fromCredits = credits.filter(
     (c) => !remixer || !artistNamesMatch(c, remixer),
   );
-  const key = cacheKey(
-    cleanedTitle,
-    searchArtists.length > 0 ? searchArtists : credits,
-  );
+  // Prefer remix credits; fall back to playlist/owner artists for the search query
+  const searchArtists =
+    fromCredits.length > 0
+      ? fromCredits
+      : ownerArtists.filter(
+          (o) => !remixer || !artistNamesMatch(o, remixer),
+        );
+  const key = cacheKey(cleanedTitle, searchArtists);
 
   if (cache?.has(key)) return cache.get(key) ?? null;
 
@@ -266,6 +287,16 @@ export async function resolveOriginalTrack(
   return resolved;
 }
 
+function isForeignRemixer(
+  remixer: string | null,
+  ownerArtists: string[],
+): remixer is string {
+  return Boolean(
+    remixer &&
+      !ownerArtists.some((owner) => artistNamesEqual(owner, remixer)),
+  );
+}
+
 async function evaluateRemixJunk(
   track: FilterableTrack,
   ownerArtists: string[],
@@ -274,9 +305,10 @@ async function evaluateRemixJunk(
   const credits = creditNames(track.artists);
   const remixer = parseRemixerName(track.name);
 
+  // Artist remixed someone else (their name is the remixer) → keep
   if (
     remixer &&
-    ownerArtists.some((owner) => artistNamesMatch(owner, remixer))
+    ownerArtists.some((owner) => artistNamesEqual(owner, remixer))
   ) {
     return {
       junk: false,
@@ -286,60 +318,64 @@ async function evaluateRemixJunk(
     };
   }
 
-  const original = await resolveOriginalTrack(track, cache);
-
-  if (original) {
-    const ownersOnlyOnRemix = ownerArtists.filter(
-      (owner) =>
-        artistOnCredits(owner, credits) &&
-        !artistOnCredits(owner, original.artists),
-    );
-    if (ownersOnlyOnRemix.length > 0) {
-      return {
-        junk: false,
-        reason: "owner only on remix",
-        category: "remix",
-        original,
-      };
-    }
-
-    const ownersOnOriginal = ownerArtists.filter((owner) =>
-      artistOnCredits(owner, original.artists),
-    );
-    if (
-      ownersOnOriginal.length > 0 &&
-      (!remixer ||
-        !ownersOnOriginal.some((owner) => artistNamesMatch(owner, remixer)))
-    ) {
-      return {
-        junk: true,
-        reason: "owner on original + foreign remixer",
-        category: "remix",
-        original,
-      };
-    }
-
+  // Named DJ in the title who isn't the playlist artist → always junk.
+  // Must run before original lookup — a bad search used to hit "owner only on
+  // remix" and keep CKDY/shryne/phonk remixes of the artist's own songs.
+  if (isForeignRemixer(remixer, ownerArtists)) {
     return {
-      junk: false,
-      reason: "remix kept after original compare",
+      junk: true,
+      reason: `foreign remixer in title (${remixer})`,
       category: "remix",
-      original,
+      original: null,
     };
   }
 
-  // Fallback: junk if owner is lead on remix and remixer ≠ owner
-  const lead = credits[0];
-  if (
-    lead &&
-    ownerArtists.some((owner) => artistNamesMatch(owner, lead)) &&
-    remixer &&
-    !ownerArtists.some((owner) => artistNamesMatch(owner, remixer))
-  ) {
+  // Any remix title on an artist playlist with no keep reason above → junk.
+  // Covers unnamed "(Remix)" and failed remixer parses.
+  if (ownerArtists.length > 0) {
     return {
       junk: true,
-      reason: "fallback: lead + foreign remixer",
+      reason: remixer
+        ? `remix filtered (${remixer})`
+        : "remix title on artist playlist",
       category: "remix",
       original: null,
+    };
+  }
+
+  // Liked Songs / no owners: use original compare + lead heuristic
+  const original = await resolveOriginalTrack(track, cache, ownerArtists);
+
+  if (original) {
+    const lead = credits[0];
+    if (
+      lead &&
+      artistOnCredits(lead, original.artists) &&
+      isForeignRemixer(remixer, [lead])
+    ) {
+      return {
+        junk: true,
+        reason: "lead on original + foreign remixer",
+        category: "remix",
+        original,
+      };
+    }
+    if (lead && !artistOnCredits(lead, original.artists)) {
+      return {
+        junk: false,
+        reason: "lead only on remix",
+        category: "remix",
+        original,
+      };
+    }
+  }
+
+  if (remixer) {
+    return {
+      junk: true,
+      reason: `fallback: named remixer (${remixer})`,
+      category: "remix",
+      original,
     };
   }
 
@@ -347,7 +383,7 @@ async function evaluateRemixJunk(
     junk: false,
     reason: "fallback: keep remix",
     category: "remix",
-    original: null,
+    original,
   };
 }
 
