@@ -109,7 +109,10 @@ export async function getArtistDiscography(
 type RawAlbumArtist = {
   uri?: string;
   profile?: { name?: string; uri?: string };
-  data?: { uri?: string; profile?: { uri?: string } };
+  data?: {
+    uri?: string;
+    profile?: { name?: string; uri?: string };
+  };
 };
 
 type RawAlbumTrack = {
@@ -132,21 +135,34 @@ function getDurationMs(track: RawAlbumTrack): number | null {
   return null;
 }
 
+function extractTrackArtists(
+  track: RawAlbumTrack,
+): { uri: string; name: string }[] {
+  const rawArtists = track.artists;
+  const items = Array.isArray(rawArtists)
+    ? rawArtists
+    : (rawArtists?.items ?? []);
+  const artists: { uri: string; name: string }[] = [];
+  for (const entry of items) {
+    const artist = entry?.data ?? entry;
+    const uri = artist?.uri ?? artist?.profile?.uri ?? "";
+    const name = artist?.profile?.name?.trim?.() ?? "";
+    if (!name && !uri) continue;
+    artists.push({ uri, name: name || uri });
+  }
+  return artists;
+}
+
 function trackCreditsArtist(
   track: RawAlbumTrack,
   artistUri: string,
   artistId: string | null,
 ): boolean {
-  const rawArtists = track.artists;
-  const items = Array.isArray(rawArtists)
-    ? rawArtists
-    : (rawArtists?.items ?? []);
-  if (items.length === 0) return true;
-  return items.some((entry) => {
-    const artist = entry?.data ?? entry;
-    const uri = artist?.uri ?? artist?.profile?.uri;
-    if (!uri) return false;
-    return uri === artistUri || uri.split(":").pop() === artistId;
+  const artists = extractTrackArtists(track);
+  if (artists.length === 0) return true;
+  return artists.some((artist) => {
+    if (!artist.uri) return false;
+    return artist.uri === artistUri || artist.uri.split(":").pop() === artistId;
   });
 }
 
@@ -196,6 +212,7 @@ async function fetchAlbumTracks(
           albumName: album.name,
           trackNumber: track.trackNumber || track.track_number || 0,
           durationMs,
+          artists: extractTrackArtists(track),
         });
       }
 
@@ -252,4 +269,133 @@ export async function getArtistTracks(
     console.error("[ERROR] Failed to fetch artist tracks:", error);
     return [];
   }
+}
+
+export type SearchedTrack = {
+  uri: string;
+  name: string;
+  artists: string[];
+  albumName: string;
+  durationMs: number | null;
+};
+
+function parseSearchTrackItems(response: unknown): SearchedTrack[] {
+  const data = (response as { data?: Record<string, unknown> })?.data;
+  const searchV2 = (data?.searchV2 ?? data?.search) as
+    | Record<string, unknown>
+    | undefined;
+  if (!searchV2) return [];
+
+  const tracksBlock = (searchV2.tracksV2 ?? searchV2.tracks) as
+    | { items?: unknown[] }
+    | undefined;
+  const items = tracksBlock?.items ?? [];
+  const results: SearchedTrack[] = [];
+
+  for (const item of items) {
+    const row = item as Record<string, unknown>;
+    const nested = (row.item as Record<string, unknown> | undefined)?.data;
+    const trackData = (nested ?? row.data ?? row) as Record<string, unknown>;
+
+    const uri = typeof trackData.uri === "string" ? trackData.uri : "";
+    if (!uri.startsWith("spotify:track:")) continue;
+
+    const name = typeof trackData.name === "string" ? trackData.name : "";
+    const artistsBlock = trackData.artists as
+      | { items?: Array<{ profile?: { name?: string } }> }
+      | Array<{ name?: string; profile?: { name?: string } }>
+      | undefined;
+
+    let artists: string[] = [];
+    if (Array.isArray(artistsBlock)) {
+      artists = artistsBlock
+        .map((a) => a.profile?.name ?? a.name ?? "")
+        .filter(Boolean);
+    } else if (artistsBlock?.items) {
+      artists = artistsBlock.items
+        .map((a) => a.profile?.name ?? "")
+        .filter(Boolean);
+    }
+
+    const albumOfTrack = trackData.albumOfTrack as
+      | { name?: string }
+      | undefined;
+    const album = trackData.album as { name?: string } | undefined;
+    const albumName = albumOfTrack?.name ?? album?.name ?? "";
+
+    const duration = trackData.duration as
+      | { totalMilliseconds?: number }
+      | undefined;
+    const durationMs =
+      typeof duration?.totalMilliseconds === "number"
+        ? duration.totalMilliseconds
+        : null;
+
+    results.push({ uri, name, artists, albumName, durationMs });
+  }
+
+  return results;
+}
+
+export async function searchTracks(
+  query: string,
+  limit = 10,
+): Promise<SearchedTrack[]> {
+  const term = query.trim();
+  if (!term) return [];
+
+  const defs = Spicetify.GraphQL.Definitions ?? {};
+  const candidates: Array<{ def: unknown; vars: Record<string, unknown> }> = [];
+
+  if (defs.searchDesktop) {
+    candidates.push({
+      def: defs.searchDesktop,
+      vars: {
+        searchTerm: term,
+        offset: 0,
+        limit,
+        numberOfTopResults: 5,
+        includeAudiobooks: false,
+        includeArtistHasConcertsField: false,
+        includePreReleases: false,
+        includeLocalConcertsField: false,
+      },
+    });
+  }
+
+  if (defs.assistedCurationSearch) {
+    candidates.push({
+      def: defs.assistedCurationSearch,
+      vars: {
+        term,
+        limit,
+        numberOfTopResults: limit,
+      },
+    });
+  }
+
+  if (defs.searchModalResults) {
+    candidates.push({
+      def: defs.searchModalResults,
+      vars: {
+        searchTerm: term,
+        offset: 0,
+        limit,
+        numberOfTopResults: 5,
+        includeAudiobooks: false,
+      },
+    });
+  }
+
+  for (const { def, vars } of candidates) {
+    try {
+      const response = await Spicetify.GraphQL.Request(def, vars);
+      const parsed = parseSearchTrackItems(response);
+      if (parsed.length > 0) return parsed;
+    } catch (error) {
+      console.warn("[WARN] Track search failed:", error);
+    }
+  }
+
+  return [];
 }

@@ -534,3 +534,149 @@
     opacity: 0.55;
   }
 }
+
+.settingsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settingsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  max-height: 42vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.settingsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 22%, transparent);
+}
+
+.settingsSubTitle {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--spice-text);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--spice-text);
+  cursor: pointer;
+}
+
+.toggleRow input {
+  accent-color: var(--spice-button);
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--spice-subtext);
+}
+
+.textInput {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 30%, transparent);
+  background: color-mix(in srgb, var(--spice-highlight) 22%, transparent);
+  color: var(--spice-text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.textInput:focus {
+  outline: 2px solid color-mix(in srgb, var(--spice-button) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.patternList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.patternRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.patternCode {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patternAdd {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.patternAdd .textInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.patternBad {
+  color: var(--spice-notification-error, #ff6b7a);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.patternWarn {
+  color: #f0a000;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.testerResults {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--spice-text);
+  padding: 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--spice-highlight) 18%, transparent);
+}
+
+.verdictJunk {
+  color: var(--spice-notification-error, #ff6b7a);
+}
+
+.verdictKeep {
+  color: #1ed760;
+}
+
+.patternRow .dangerBtn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.settingsHeader .secondaryBtn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}

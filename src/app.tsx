@@ -5,6 +5,7 @@ import { ModePicker } from "@/components/ModePicker";
 import { OpControls } from "@/components/OpControls";
 import { PlaylistGrid } from "@/components/PlaylistGrid";
 import { ProgressPanel } from "@/components/ProgressPanel";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { runBatch } from "@/operations/batch";
 import type { OperationKind } from "@/operations/types";
 import {
@@ -112,6 +113,7 @@ function App() {
         </section>
 
         <aside className={styles.sideColumn}>
+          <SettingsPanel />
           <section className={styles.panel}>
             <h2 className={styles.panelTitle}>Progress</h2>
             <ProgressPanel />

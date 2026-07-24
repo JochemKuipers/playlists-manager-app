@@ -12,7 +12,14 @@ import {
   shouldSkipAddingTrack,
   throwIfAborted,
 } from "@/operations/normalize";
-import type { OpResult, ProgressEvent } from "@/operations/types";
+import {
+  compilePatterns,
+  createOriginalCache,
+  evaluateJunkTrack,
+  mapInChunks,
+} from "@/operations/trackFilters";
+import type { ArtistTrack, OpResult, ProgressEvent } from "@/operations/types";
+import { loadIgnoreSettings } from "@/settings";
 
 export type ProgressFn = (event: ProgressEvent) => void;
 
@@ -90,7 +97,7 @@ export async function updatePlaylist(
 
     throwIfAborted(signal);
     const existingTracks = await fetchPlaylistTracks(playlistUri);
-    emit(`Loaded ${existingTracks.length} existing track(s)`, "info", 0.7);
+    emit(`Loaded ${existingTracks.length} existing track(s)`, "info", 0.65);
 
     const existingTrackUris = new Set(existingTracks.map((t) => t.uri));
     const existingTracksByName = new Map<string, Array<number | null>>();
@@ -102,8 +109,8 @@ export async function updatePlaylist(
       );
     }
 
-    const newTrackUris: string[] = [];
     const pendingTracksByName = new Map<string, Array<number | null>>();
+    const candidates: ArtistTrack[] = [];
 
     for (const track of allArtistTracks) {
       if (!track.uri) continue;
@@ -118,7 +125,53 @@ export async function updatePlaylist(
         continue;
 
       addDurationEntry(pendingTracksByName, normalizedName, duration);
-      newTrackUris.push(track.uri);
+      candidates.push(track);
+    }
+
+    throwIfAborted(signal);
+    const settings = loadIgnoreSettings();
+    const cache = createOriginalCache();
+    const compiledPatterns = compilePatterns(settings.customPatterns);
+
+    emit(
+      `Filtering ${candidates.length} candidate(s) with ignore settings…`,
+      "info",
+      0.75,
+    );
+
+    const verdicts = await mapInChunks(candidates, async (track) => {
+      throwIfAborted(signal);
+      return evaluateJunkTrack(
+        {
+          name: track.name,
+          albumName: track.albumName,
+          artists: track.artists,
+          durationMs: track.durationMs,
+          uri: track.uri,
+        },
+        settings,
+        artistNames,
+        { cache, compiledPatterns },
+      );
+    });
+
+    const newTrackUris: string[] = [];
+    let skipped = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      const verdict = verdicts[i];
+      if (verdict.junk) {
+        skipped += 1;
+        if (skipped <= 8) {
+          emit(`Skip add "${candidates[i].name}" — ${verdict.reason}`, "skip");
+        }
+        continue;
+      }
+      newTrackUris.push(candidates[i].uri);
+    }
+    if (skipped > 8) {
+      emit(`…and ${skipped - 8} more skipped by filters`, "skip");
+    } else if (skipped > 0) {
+      emit(`Skipped ${skipped} track(s) via ignore filters`, "skip");
     }
 
     if (newTrackUris.length === 0) {
@@ -127,7 +180,9 @@ export async function updatePlaylist(
         playlistUri,
         ok: true,
         added: 0,
-        message: "Already up to date",
+        message: skipped
+          ? `Already up to date (${skipped} filtered)`
+          : "Already up to date",
       };
     }
 

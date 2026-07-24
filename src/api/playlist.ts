@@ -10,7 +10,7 @@ type RawTrack = {
   duration?: { milliseconds?: number; totalMilliseconds?: number };
   artists?: Array<{ name?: string }>;
   is_explicit?: boolean;
-  album?: { images?: Array<{ url?: string }> };
+  album?: { name?: string; images?: Array<{ url?: string }> };
   uid?: string;
   rowId?: string;
   rowid?: string;
@@ -47,6 +47,7 @@ export async function fetchPlaylistTracks(
       artists: (track.artists ?? [])
         .map((a) => a.name)
         .filter((n): n is string => Boolean(n)),
+      albumName: track.album?.name,
       isLocal: track.uri.startsWith("spotify:local:"),
       isExplicit: track.is_explicit ?? false,
       albumImageUrl: track.album?.images?.[0]?.url,

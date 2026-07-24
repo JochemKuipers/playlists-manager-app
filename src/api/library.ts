@@ -11,7 +11,7 @@ type RawLiked = {
   artists?: Array<{ name?: string }>;
   isExplicit?: boolean;
   is_explicit?: boolean;
-  album?: { images?: Array<{ url?: string }> };
+  album?: { name?: string; images?: Array<{ url?: string }> };
   uid?: string;
 };
 
@@ -33,6 +33,7 @@ export async function fetchAllLikedSongsTracks(): Promise<PlaylistTrack[]> {
         artists: (track.artists ?? [])
           .map((a) => a.name)
           .filter((n): n is string => Boolean(n)),
+        albumName: track.album?.name,
         isLocal: track.uri.startsWith("spotify:local:"),
         isExplicit: track.isExplicit ?? track.is_explicit ?? false,
         albumImageUrl: track.album?.images?.[0]?.url,

@@ -3,6 +3,7 @@ export type PlaylistTrack = {
   name: string;
   durationMs: number;
   artists: string[];
+  albumName?: string;
   isLocal: boolean;
   isExplicit: boolean;
   albumImageUrl?: string;
@@ -33,6 +34,7 @@ export type ArtistTrack = {
   albumName: string;
   trackNumber: number;
   durationMs: number;
+  artists: { uri: string; name: string }[];
 };
 
 export type PlaylistCard = {

@@ -1,10 +1,6 @@
 import React from "react";
 import type { SelectionMode } from "@/operations/types";
-import {
-  clearSelection,
-  selectAll,
-  setMode,
-} from "@/store/operationStore";
+import { clearSelection, selectAll, setMode } from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
@@ -54,9 +50,7 @@ export function ModePicker() {
           >
             Clear
           </button>
-          <span className={styles.hint}>
-            {selected.size} selected
-          </span>
+          <span className={styles.hint}>{selected.size} selected</span>
         </div>
       )}
     </div>
