@@ -194,7 +194,9 @@
 
 .playlistGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  /* 75% of original ~180px (= 25% smaller, not 50%) */
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  grid-auto-rows: 210px;
   gap: 8px;
   flex: 1;
   min-height: 0;
@@ -205,6 +207,7 @@
 
 .cardCell {
   min-width: 0;
+  height: 100%;
 }
 
 .card {
@@ -222,6 +225,7 @@
   transition: border-color 160ms ease, background 160ms ease;
   min-width: 0;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -245,6 +249,7 @@
   border-radius: 6px;
   object-fit: cover;
   background: var(--spice-highlight);
+  flex-shrink: 0;
 }
 
 .cardArtPlaceholder {
@@ -256,12 +261,14 @@
     color-mix(in srgb, var(--spice-highlight) 60%, transparent),
     color-mix(in srgb, var(--spice-button) 25%, transparent)
   );
+  flex-shrink: 0;
 }
 
 .cardName {
   font-weight: 700;
-  font-size: 0.75rem;
-  line-height: 1.2;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  height: 2.5em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -269,6 +276,7 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .cardMeta {
@@ -276,10 +284,12 @@
   justify-content: space-between;
   align-items: center;
   gap: 4px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--spice-subtext);
   min-width: 0;
   overflow: hidden;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .cardMeta span:first-child {
