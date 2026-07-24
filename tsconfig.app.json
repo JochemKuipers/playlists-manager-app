@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["@spicetify/creator/client"],
+    "types": ["@spicemod/creator/client"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -23,9 +23,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    // Paths
-    "baseUrl": ".",
+    // Paths (TS 7: paths replace baseUrl)
     "paths": {
+      "*": ["./*"],
       "@/*": ["./src/*"]
     }
   },

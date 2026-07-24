@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!dist"]
+    "includes": ["**", "!node_modules", "!dist", "!src/types/spicetify.d.ts", "!**/*.svg"]
   },
   "formatter": {
     "enabled": true,

@@ -1,53 +1,64 @@
-# playlists-manager-app
+# Playlist Manager
 
-Welcome to your new **Spicetify custom-app** project! This project was
-bootstrapped using [@spicetify/creator](https://github.com/sanoojes/spicetify-creator).
+Spicetify custom app to **Update** artist playlists from discography, **Clean** duplicates, and **Like Missing** tracks — with multi-playlist selection and live progress UI.
 
-## Getting Started
+Bootstrapped with [@spicemod/creator](https://github.com/sanoojes/spicetify-creator) (formerly `@spicetify/creator`).
 
-First, install the dependencies using your package manager:
+## Install & apply
+
+Requires [Spicetify](https://spicetify.app/docs/getting-started) and [Bun](https://bun.sh).
 
 ```bash
 bun install
+bun run build -- -a
 ```
 
-Then, run the development server:
+`-a` builds, copies the app into Spicetify’s `CustomApps` folder, and runs `spicetify apply`.
+
+For development with hot reload:
 
 ```bash
 bun run dev
 ```
 
-The development server will watch for changes and automatically rebuild your
-project.
+Then open **Playlist Manager** in Spotify’s left sidebar.
 
-## Available Scripts
+## Operations
 
-### `dev`
+| Op               | What it does                                                                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Update**       | Reads playlist title as `Artist1 / Artist2`, fetches each artist’s discography, appends tracks not already present (URI + normalized name/duration match). |
+| **Clean**        | Removes duplicate tracks. Keeps the earliest entry; prefers Spotify over local; prefers explicit when mixed. Also works on **Liked Songs**.                |
+| **Like Missing** | Likes playlist tracks that are not already in Liked Songs (same name/duration skip rules).                                                                 |
 
-Runs the project in development mode with hot-reloading.
+### Modes
 
-### `build`
+- **All playlists** — every owned playlist
+- **Selection** — multi-select
+- **Single** — one playlist
+- **Liked Songs** — Clean only
 
-Optimizes and bundles your custom-app for production. The output will be
-located in the `dist` directory.
+Update playlists should be named like `Radiohead / Thom Yorke` (artists separated by `/`).
 
-### `lint`
+## Scripts
 
-Checks your code for errors and formatting issues using biome.
+| Script                 | Purpose                     |
+| ---------------------- | --------------------------- |
+| `bun run dev`          | Watch + copy into Spicetify |
+| `bun run build`        | Production bundle → `dist/` |
+| `bun run build -- -a`  | Build and `spicetify apply` |
+| `bun run lint`         | Biome check                 |
+| `bun run update-types` | Refresh Spicetify globals   |
+| `bun run clean-spice`  | Remove creator HMR helpers  |
 
-## Project Structure
+## Layout
 
 ```text
-.
-├── src/
-│   └── app.tsx         # Main entry point for your custom-app
-└── spice.config.ts # Configuration for @spicetify/creator
+src/
+  app.tsx              # UI shell
+  api/                 # Platform / GraphQL wrappers
+  operations/          # update, clean, likeMissing, batch
+  store/               # progress + selection state
+  components/          # ModePicker, grid, progress, log
+  css/app.module.scss  # Spicetify CSS variables
 ```
-
-## Learn More
-
-To learn more about Spicetify and how to customize your Spotify client, check
-out the following resources:
-
-- [Spicetify](https://spicetify.app/docs/getting-started)
-- [@spicetify/creator](https://github.com/sanoojes/spicetify-creator)
