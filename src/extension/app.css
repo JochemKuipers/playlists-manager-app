@@ -1,0 +1,163 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: opacity 0.3s ease;
+  font-family: "Poppins", sans-serif;
+}
+
+.onboarding-overlay.fade-out {
+  opacity: 0;
+}
+
+.onboarding-card {
+  background: rgba(24, 24, 24, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 40px;
+  width: 400px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+  transform: translateY(0);
+  transition: transform 0.3s ease;
+  backdrop-filter: blur(16px);
+}
+
+.onboarding-overlay.fade-out .onboarding-card {
+  transform: translateY(20px);
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1db954;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 30px;
+}
+
+.close-icon-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.close-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.label {
+  color: #777;
+  font-size: 14px;
+}
+.value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.footer-tip {
+  font-size: 12px;
+  color: #555;
+  border-top: 1px solid #282828;
+  padding-top: 20px;
+}
+
+code {
+  color: #1db954;
+  background: rgba(29, 185, 84, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.get-started-btn,
+.dismiss-btn,
+.discord-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  border: 1px solid transparent;
+}
+
+.get-started-btn {
+  background: rgba(16, 185, 129, 0.8);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+.get-started-btn:hover {
+  background: rgba(16, 185, 129, 1);
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+}
+
+.discord-btn {
+  background: rgba(88, 101, 242, 0.8);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(88, 101, 242, 0.2);
+}
+
+.discord-btn:hover {
+  background: rgba(88, 101, 242, 1);
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(88, 101, 242, 0.4);
+}
+
+.dismiss-btn {
+  background: rgba(55, 65, 81, 0.8);
+  color: #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dismiss-btn:hover {
+  background: rgba(75, 85, 99, 0.9);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.get-started-btn:active,
+.discord-btn:active,
+.dismiss-btn:active {
+  transform: scale(0.98);
+}
