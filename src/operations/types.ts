@@ -88,3 +88,5 @@ export const ALBUM_FETCH_CONCURRENCY = 12;
 
 export const LIKED_SONGS_URI = "spotify:collection:tracks";
 export const LIKED_SONGS_PLAYLIST_IDS = new Set(["37i9dQZF1F5p3rmiWPIYgZ"]);
+export const LIKED_SONGS_IMAGE_URL =
+  "https://misc.scdn.co/liked-songs/liked-songs-300.png";

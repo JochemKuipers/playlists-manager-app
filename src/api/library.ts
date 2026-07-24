@@ -46,6 +46,29 @@ export async function fetchAllLikedSongsTracks(): Promise<PlaylistTrack[]> {
   }
 }
 
+export async function getLikedSongsTrackCount(): Promise<number> {
+  try {
+    const res = await Spicetify.Platform.LibraryAPI.getTracks({
+      limit: 1,
+      offset: 0,
+    });
+    const total =
+      res?.totalLength ??
+      res?.totalCount ??
+      res?.total ??
+      res?.length ??
+      null;
+    if (typeof total === "number" && total >= 0) return total;
+
+    // Fallback: full fetch when API omits a total field
+    const all = await fetchAllLikedSongsTracks();
+    return all.length;
+  } catch (error) {
+    console.error("[ERROR] Failed to count Liked Songs:", error);
+    return 0;
+  }
+}
+
 export async function removeTracksFromLikedSongs(
   trackUris: string[],
 ): Promise<number> {

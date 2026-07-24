@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { getLikedSongsTrackCount } from "@/api/library";
 import type { ItemStatus, PlaylistCard } from "@/operations/types";
-import { LIKED_SONGS_URI } from "@/operations/types";
-import { toggleSelect } from "@/store/operationStore";
+import {
+  LIKED_SONGS_IMAGE_URL,
+  LIKED_SONGS_URI,
+} from "@/operations/types";
+import { setLikedTrackCount, toggleSelect } from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
@@ -33,6 +37,11 @@ function PlaylistCardView({
   progress: number;
   selectable: boolean;
 }) {
+  const trackLabel =
+    typeof card.trackCount === "number" && card.trackCount >= 0
+      ? `${card.trackCount.toLocaleString()} tracks`
+      : "— tracks";
+
   return (
     <button
       type="button"
@@ -53,7 +62,7 @@ function PlaylistCardView({
       )}
       <div className={styles.cardName}>{card.name}</div>
       <div className={styles.cardMeta}>
-        <span>{card.trackCount || "—"} tracks</span>
+        <span>{trackLabel}</span>
         <span className={`${styles.badge} ${statusClass(status)}`}>
           {status}
         </span>
@@ -80,7 +89,20 @@ export function PlaylistGrid() {
     loadingPlaylists,
     loadError,
     running,
+    likedTrackCount,
   } = useOperationStore();
+
+  useEffect(() => {
+    if (mode !== "liked") return;
+    let cancelled = false;
+    void (async () => {
+      const count = await getLikedSongsTrackCount();
+      if (!cancelled) setLikedTrackCount(count);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, running]);
 
   if (loadError) {
     return <div className={styles.errorBanner}>{loadError}</div>;
@@ -100,7 +122,8 @@ export function PlaylistGrid() {
             card={{
               uri: LIKED_SONGS_URI,
               name: "Liked Songs",
-              trackCount: 0,
+              trackCount: likedTrackCount ?? -1,
+              imageUrl: LIKED_SONGS_IMAGE_URL,
               owned: true,
             }}
             selected

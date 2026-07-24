@@ -23,6 +23,7 @@ export type OperationState = {
   overallProgress: number;
   loadError: string | null;
   loadingPlaylists: boolean;
+  likedTrackCount: number | null;
 };
 
 type Listener = () => void;
@@ -44,6 +45,7 @@ const data: OperationState = {
   overallProgress: 0,
   loadError: null,
   loadingPlaylists: false,
+  likedTrackCount: null,
 };
 
 // Stable snapshot for useSyncExternalStore (new ref on every emit).
@@ -83,6 +85,11 @@ export function appendLog(
     ...data.logs,
     { id: String(logSeq), ts: Date.now(), kind, message, playlistUri },
   ].slice(-500);
+  emit();
+}
+
+export function setLikedTrackCount(count: number | null): void {
+  data.likedTrackCount = count;
   emit();
 }
 
