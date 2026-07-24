@@ -75,14 +75,13 @@ async function startOperation(operation: OperationKind) {
 }
 
 function App() {
-  const { operation, mode, selected, playlists, running } = useOperationStore();
+  const { operation, mode, selected, running } = useOperationStore();
 
   useEffect(() => {
     void loadPlaylists();
   }, []);
 
-  const targetCount =
-    mode === "liked" ? 1 : mode === "all" ? playlists.length : selected.size;
+  const targetCount = mode === "liked" ? 1 : selected.size;
 
   return (
     <div className={styles.container}>

@@ -95,18 +95,20 @@ export function PlaylistGrid() {
     const progress = itemProgress.get(LIKED_SONGS_URI) ?? 0;
     return (
       <div className={styles.playlistGrid}>
-        <PlaylistCardView
-          card={{
-            uri: LIKED_SONGS_URI,
-            name: "Liked Songs",
-            trackCount: 0,
-            owned: true,
-          }}
-          selected
-          status={status}
-          progress={progress}
-          selectable={false}
-        />
+        <div className={styles.cardCell}>
+          <PlaylistCardView
+            card={{
+              uri: LIKED_SONGS_URI,
+              name: "Liked Songs",
+              trackCount: 0,
+              owned: true,
+            }}
+            selected
+            status={status}
+            progress={progress}
+            selectable={false}
+          />
+        </div>
       </div>
     );
   }
@@ -115,7 +117,7 @@ export function PlaylistGrid() {
     return <div className={styles.empty}>No owned playlists found.</div>;
   }
 
-  const selectable = !running && (mode === "selection" || mode === "single");
+  const selectable = !running;
 
   return (
     <div className={styles.playlistGrid}>
@@ -123,7 +125,7 @@ export function PlaylistGrid() {
         <div key={card.uri} className={styles.cardCell}>
           <PlaylistCardView
             card={card}
-            selected={selected.has(card.uri) || mode === "all"}
+            selected={selected.has(card.uri)}
             status={statuses.get(card.uri) ?? "idle"}
             progress={itemProgress.get(card.uri) ?? 0}
             selectable={selectable}

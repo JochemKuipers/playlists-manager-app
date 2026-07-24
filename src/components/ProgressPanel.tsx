@@ -15,11 +15,7 @@ export function ProgressPanel() {
   } = useOperationStore();
 
   const activeUris =
-    mode === "liked"
-      ? ["spotify:collection:tracks"]
-      : mode === "all"
-        ? playlists.map((p) => p.uri)
-        : [...selected];
+    mode === "liked" ? ["spotify:collection:tracks"] : [...selected];
 
   const nameByUri = new Map(playlists.map((p) => [p.uri, p.name]));
   nameByUri.set("spotify:collection:tracks", "Liked Songs");

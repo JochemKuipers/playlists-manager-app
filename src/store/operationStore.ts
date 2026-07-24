@@ -32,7 +32,7 @@ let abortController: AbortController | null = null;
 
 // Mutable working state — never returned directly to React.
 const data: OperationState = {
-  mode: "all",
+  mode: "playlists",
   operation: "clean",
   playlists: [],
   selected: new Set(),
@@ -92,12 +92,7 @@ export function setMode(mode: SelectionMode): void {
   if (mode === "liked") {
     data.operation = "clean";
     data.selected = new Set([LIKED_SONGS_URI]);
-  } else if (mode === "all") {
-    data.selected = new Set(data.playlists.map((p) => p.uri));
-  } else if (mode === "single" && data.selected.size > 1) {
-    const first = data.selected.values().next().value;
-    data.selected = first ? new Set([first]) : new Set();
-  } else if (mode === "selection" && data.selected.has(LIKED_SONGS_URI)) {
+  } else {
     data.selected = new Set();
   }
   emit();
@@ -114,8 +109,10 @@ export function setPlaylists(playlists: PlaylistCard[]): void {
   data.playlists = playlists;
   data.loadingPlaylists = false;
   data.loadError = null;
-  if (data.mode === "all") {
-    data.selected = new Set(playlists.map((p) => p.uri));
+  // Drop selections that no longer exist
+  if (data.mode === "playlists") {
+    const uris = new Set(playlists.map((p) => p.uri));
+    data.selected = new Set([...data.selected].filter((uri) => uris.has(uri)));
   }
   const statuses = new Map<string, ItemStatus>();
   for (const p of playlists) statuses.set(p.uri, "idle");
@@ -136,17 +133,23 @@ export function setLoadError(error: string | null): void {
 }
 
 export function toggleSelect(uri: string): void {
-  if (data.running) return;
-  if (data.mode === "all" || data.mode === "liked") return;
-
+  if (data.running || data.mode !== "playlists") return;
   const next = new Set(data.selected);
-  if (data.mode === "single") {
-    data.selected = new Set([uri]);
-  } else {
-    if (next.has(uri)) next.delete(uri);
-    else next.add(uri);
-    data.selected = next;
-  }
+  if (next.has(uri)) next.delete(uri);
+  else next.add(uri);
+  data.selected = next;
+  emit();
+}
+
+export function selectAll(): void {
+  if (data.running || data.mode !== "playlists") return;
+  data.selected = new Set(data.playlists.map((p) => p.uri));
+  emit();
+}
+
+export function clearSelection(): void {
+  if (data.running || data.mode !== "playlists") return;
+  data.selected = new Set();
   emit();
 }
 
@@ -238,7 +241,6 @@ export function requestStop(): void {
 
 export function getTargetUris(): string[] {
   if (data.mode === "liked") return [LIKED_SONGS_URI];
-  if (data.mode === "all") return data.playlists.map((p) => p.uri);
   return [...data.selected];
 }
 

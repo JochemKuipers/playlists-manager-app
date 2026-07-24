@@ -43,7 +43,7 @@ export type PlaylistCard = {
   owned: boolean;
 };
 
-export type SelectionMode = "all" | "selection" | "single" | "liked";
+export type SelectionMode = "playlists" | "liked";
 export type OperationKind = "update" | "clean" | "likeMissing";
 export type ItemStatus = "idle" | "running" | "done" | "failed" | "skipped";
 
