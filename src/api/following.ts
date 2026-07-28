@@ -27,10 +27,7 @@ export async function fetchFollowedArtistNames(): Promise<string[]> {
       for (const item of res?.items ?? []) pushName(item?.name);
     }
 
-    if (
-      names.size === 0 &&
-      typeof lib?.getContents === "function"
-    ) {
+    if (names.size === 0 && typeof lib?.getContents === "function") {
       // filters: "2" is artists in several Spotify client builds
       const res = await lib.getContents({
         filters: ["2"],

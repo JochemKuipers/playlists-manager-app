@@ -38,8 +38,9 @@ export async function fetchPlaylistTracks(
     limit: -1,
   });
 
-  return ((res.items as RawTrack[]) ?? [])
-    .filter((track) => track.isPlayable)
+  const items = Array.isArray(res.items) ? (res.items as RawTrack[]) : [];
+  return items
+    .filter((track) => track.isPlayable !== false)
     .map((track, index) => ({
       uri: track.uri,
       name: track.name,
@@ -73,16 +74,21 @@ export async function getPlaylistMetadata(
 export async function addTracksToPlaylist(
   playlistUri: string,
   trackUris: string[],
-): Promise<boolean> {
-  try {
-    await Spicetify.Platform.PlaylistAPI.add(playlistUri, trackUris, {
-      after: "end",
-    });
-    return true;
-  } catch (error) {
-    console.error("[ERROR] PlaylistAPI.add failed:", error);
-    return false;
+): Promise<number> {
+  let added = 0;
+  for (let i = 0; i < trackUris.length; i += API_BATCH_SIZE) {
+    const batch = trackUris.slice(i, i + API_BATCH_SIZE);
+    try {
+      await Spicetify.Platform.PlaylistAPI.add(playlistUri, batch, {
+        after: "end",
+      });
+      added += batch.length;
+    } catch (error) {
+      console.error("[ERROR] PlaylistAPI.add failed:", error);
+      break;
+    }
   }
+  return added;
 }
 
 export async function removeTracksFromPlaylist(

@@ -77,11 +77,6 @@ export function parseArtistsFromTitle(title: string): string[] {
     .filter((name) => name.length > 0);
 }
 
-export function getPlaylistIdFromUri(uri: string): string | null {
-  const match = uri.match(/playlist[/:]([a-zA-Z0-9]+)/);
-  return match ? match[1] : null;
-}
-
 export function getArtistIdFromUri(uri: string): string | null {
   return uri.split(":").pop() ?? null;
 }
@@ -92,4 +87,30 @@ export function throwIfAborted(signal?: AbortSignal): void {
     err.name = "AbortError";
     throw err;
   }
+}
+
+export function abortable<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return promise;
+  throwIfAborted(signal);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      const err = new Error("Aborted");
+      err.name = "AbortError";
+      reject(err);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }

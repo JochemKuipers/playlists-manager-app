@@ -9,7 +9,11 @@ import {
   removeTracksFromPlaylist,
 } from "@/api/playlist";
 import { findDuplicates, getTrackToKeepIndex } from "@/operations/duplicates";
-import { parseArtistsFromTitle, throwIfAborted } from "@/operations/normalize";
+import {
+  abortable,
+  parseArtistsFromTitle,
+  throwIfAborted,
+} from "@/operations/normalize";
 import {
   compilePatterns,
   createOriginalCache,
@@ -21,7 +25,7 @@ import type {
   PlaylistTrack,
   ProgressEvent,
 } from "@/operations/types";
-import { loadIgnoreSettings, hasAnyIgnoreFilter } from "@/settings";
+import { hasAnyIgnoreFilter, loadIgnoreSettings } from "@/settings";
 import type { ProgressFn } from "./update";
 
 async function collectJunkRemovals(
@@ -74,11 +78,13 @@ async function collectJunkRemovals(
   const junk: { uri: string; uid?: string }[] = [];
   let logged = 0;
   for (let i = 0; i < tracks.length; i++) {
-    if (!verdicts[i].junk) continue;
-    junk.push({ uri: tracks[i].uri, uid: tracks[i].uid });
+    const verdict = verdicts[i];
+    const track = tracks[i];
+    if (!verdict?.junk || !track) continue;
+    junk.push({ uri: track.uri, uid: track.uid });
     logged += 1;
     if (logged <= 8) {
-      emit(`Remove "${tracks[i].name}" — ${verdicts[i].reason}`, "remove");
+      emit(`Remove "${track.name}" — ${verdict.reason}`, "remove");
     }
   }
   if (logged > 8) {
@@ -129,7 +135,7 @@ export async function cleanPlaylist(
     throwIfAborted(signal);
     emit("Scanning playlist…", "info", 0.1);
 
-    const tracks = await fetchPlaylistTracks(playlistUri);
+    const tracks = await abortable(fetchPlaylistTracks(playlistUri), signal);
     if (tracks.length === 0) {
       return {
         playlistUri,
@@ -167,17 +173,19 @@ export async function cleanPlaylist(
         group.tracks.sort((a, b) => a.index - b.index);
         const keepIndex = getTrackToKeepIndex(group);
         const kept = group.tracks[keepIndex];
+        if (!kept) continue;
         emit(
           `Keeping "${kept.name}" (${kept.isExplicit ? "explicit" : "clean"}, ${kept.isLocal ? "local" : "spotify"}), removing ${group.tracks.length - 1}`,
           "info",
         );
         for (let i = 0; i < group.tracks.length; i++) {
-          if (i !== keepIndex) {
-            duplicateRemovals.push({
-              uri: group.tracks[i].uri,
-              uid: group.tracks[i].uid,
-            });
-          }
+          if (i === keepIndex) continue;
+          const dup = group.tracks[i];
+          if (!dup) continue;
+          duplicateRemovals.push({
+            uri: dup.uri,
+            uid: dup.uid,
+          });
         }
       }
     }
@@ -207,6 +215,20 @@ export async function cleanPlaylist(
         ok: false,
         removed: 0,
         message: "No tracks removed (playlist may have changed)",
+      };
+    }
+
+    if (removedCount < tracksToRemove.length) {
+      emit(
+        `Removed ${removedCount}/${tracksToRemove.length} track(s)`,
+        "remove",
+        1,
+      );
+      return {
+        playlistUri,
+        ok: false,
+        removed: removedCount,
+        message: `Removed ${removedCount}/${tracksToRemove.length} (partial failure)`,
       };
     }
 
@@ -247,7 +269,7 @@ export async function cleanLikedSongs(
     throwIfAborted(signal);
     emit("Scanning Liked Songs…", "info", 0.1);
 
-    const tracks = await fetchAllLikedSongsTracks();
+    const tracks = await abortable(fetchAllLikedSongsTracks(), signal);
     if (tracks.length === 0) {
       return {
         playlistUri,
@@ -276,12 +298,15 @@ export async function cleanLikedSongs(
         group.tracks.sort((a, b) => a.index - b.index);
         const keepIndex = getTrackToKeepIndex(group);
         const kept = group.tracks[keepIndex];
+        if (!kept) continue;
         emit(
           `Keeping "${kept.name}", removing ${group.tracks.length - 1} duplicate(s)`,
           "info",
         );
         for (let i = 0; i < group.tracks.length; i++) {
-          if (i !== keepIndex) duplicateUris.push(group.tracks[i].uri);
+          if (i === keepIndex) continue;
+          const dup = group.tracks[i];
+          if (dup) duplicateUris.push(dup.uri);
         }
       }
     }
@@ -304,7 +329,8 @@ export async function cleanLikedSongs(
 
     throwIfAborted(signal);
     emit(`Removing ${urisToRemove.length} track(s)…`, "remove", 0.7);
-    const removedCount = await removeTracksFromLikedSongs(urisToRemove);
+    const removedUris = await removeTracksFromLikedSongs(urisToRemove);
+    const removedCount = removedUris.length;
 
     if (removedCount === 0) {
       return {
@@ -312,6 +338,20 @@ export async function cleanLikedSongs(
         ok: false,
         removed: 0,
         message: "No tracks were removed from Liked Songs",
+      };
+    }
+
+    if (removedCount < urisToRemove.length) {
+      emit(
+        `Removed ${removedCount}/${urisToRemove.length} track(s)`,
+        "remove",
+        1,
+      );
+      return {
+        playlistUri,
+        ok: false,
+        removed: removedCount,
+        message: `Removed ${removedCount}/${urisToRemove.length} (partial failure)`,
       };
     }
 

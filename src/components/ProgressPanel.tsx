@@ -2,6 +2,8 @@ import React from "react";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
+void React;
+
 export function ProgressPanel() {
   const {
     overallProgress,

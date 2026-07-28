@@ -4,20 +4,23 @@ import { clearLogs } from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
+// Spicetify creator bundles with classic JSX (needs React in scope).
+void React;
+
 function kindClass(kind: LogKind): string {
   switch (kind) {
     case "add":
-      return styles.logAdd;
+      return styles.logAdd ?? "";
     case "remove":
-      return styles.logRemove;
+      return styles.logRemove ?? "";
     case "skip":
-      return styles.logSkip;
+      return styles.logSkip ?? "";
     case "error":
-      return styles.logError;
+      return styles.logError ?? "";
     case "success":
-      return styles.logSuccess;
+      return styles.logSuccess ?? "";
     default:
-      return styles.logInfo;
+      return styles.logInfo ?? "";
   }
 }
 

@@ -3,6 +3,7 @@ import {
   buildLikedSongsIndex,
   likeMissingPlaylistTracks,
 } from "@/operations/likeMissing";
+import { mapInChunks } from "@/operations/trackFilters";
 import type {
   LikedSongsIndex,
   OperationKind,
@@ -48,8 +49,12 @@ export async function runBatch(options: {
     });
   }
 
-  const results = await Promise.all(
-    uris.map(async (uri) => {
+  // ponytail: pool 3 (likeMissing=1 for shared index), raise if Spotify rate-limits
+  const concurrency = kind === "likeMissing" ? 1 : 3;
+
+  return mapInChunks(
+    uris,
+    async (uri) => {
       callbacks.onItemStart(uri);
       let result: OpResult;
       try {
@@ -79,8 +84,7 @@ export async function runBatch(options: {
       }
       callbacks.onItemDone(result);
       return result;
-    }),
+    },
+    concurrency,
   );
-
-  return results;
 }

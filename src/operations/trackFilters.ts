@@ -41,7 +41,34 @@ export type CompiledPattern = {
   regex: RegExp;
 };
 
-const PATTERN_WARN_LENGTH = 200;
+const PATTERN_MAX_LENGTH = 80;
+
+export function validatePattern(source: string): {
+  ok: boolean;
+  error?: string;
+  warn?: string;
+} {
+  const trimmed = source.trim();
+  if (!trimmed) return { ok: false, error: "Empty pattern" };
+  if (trimmed.length > PATTERN_MAX_LENGTH) {
+    return { ok: false, error: `Max ${PATTERN_MAX_LENGTH} chars` };
+  }
+  if (
+    /(\*|\+|\{\d+,\d*\}){2,}/.test(trimmed) &&
+    /[+*]{2}|\(.*[+*].*\)[+*]/.test(trimmed)
+  ) {
+    return { ok: false, error: "Pattern too complex" };
+  }
+  try {
+    void new RegExp(trimmed, "i");
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Invalid regex",
+    };
+  }
+  return { ok: true };
+}
 
 const LIVE_RE =
   /\b(live(\s+(at|from|in|on|version|recording|session|performance))?|recorded\s+live|live\s+version)\b/i;
@@ -50,12 +77,9 @@ const LIVE_PAREN_RE = /[([\-–—]\s*live\b/i;
 const SPED_RE =
   /\b(sped\s*up|speed\s*up|slowed(\s*(\+|&|and)\s*reverb)?|slowed\s*down|nightcore|daycore|super\s*slowed)\b/i;
 
-const INSTRUMENTAL_RE =
-  /\b(instrumentals?|karaoke|inst\.?)\b/i;
-const COMMENTARY_RE =
-  /\b(commentary|interview|spoken\s*word|skit)\b/i;
-const ACAPELLA_RE =
-  /\b(a\s*c+ap+ella|acapellas?)\b/i;
+const INSTRUMENTAL_RE = /\b(instrumentals?|karaoke|inst\.?)\b/i;
+const COMMENTARY_RE = /\b(commentary|interview|spoken\s*word|skit)\b/i;
+const ACAPELLA_RE = /\b(a\s*c+ap+ella|acapellas?)\b/i;
 
 const REMIX_PAREN_RE =
   /[([]([^()\]]+?)\s+(?:official\s+)?(?:remix|bootleg|edit|flip|mashup)\s*[)\]]\s*$/i;
@@ -181,30 +205,6 @@ export function stripRemixSuffix(title: string): string {
   return cleaned.replace(/\s+/g, " ").trim() || title.trim();
 }
 
-export function validatePattern(source: string): {
-  ok: boolean;
-  error?: string;
-  warn?: string;
-} {
-  const trimmed = source.trim();
-  if (!trimmed) return { ok: false, error: "Empty pattern" };
-  try {
-    void new RegExp(trimmed, "i");
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Invalid regex",
-    };
-  }
-  if (trimmed.length > PATTERN_WARN_LENGTH) {
-    return {
-      ok: true,
-      warn: `Long pattern (${trimmed.length} chars) — may be slow`,
-    };
-  }
-  return { ok: true };
-}
-
 export function compilePatterns(patterns: string[]): CompiledPattern[] {
   const out: CompiledPattern[] = [];
   for (const source of patterns) {
@@ -274,7 +274,7 @@ function pickBestOriginal(
     const n = normalizeTrackName(r.name);
     return n.includes(normalizedTarget) || normalizedTarget.includes(n);
   });
-  return near ?? candidates[0];
+  return near ?? candidates[0] ?? null;
 }
 
 export async function resolveOriginalTrack(
@@ -292,9 +292,7 @@ export async function resolveOriginalTrack(
   const searchArtists =
     fromCredits.length > 0
       ? fromCredits
-      : ownerArtists.filter(
-          (o) => !remixer || !artistNamesMatch(o, remixer),
-        );
+      : ownerArtists.filter((o) => !remixer || !artistNamesMatch(o, remixer));
   const key = cacheKey(cleanedTitle, searchArtists);
 
   if (cache?.has(key)) return cache.get(key) ?? null;
@@ -321,8 +319,7 @@ function isForeignRemixer(
   ownerArtists: string[],
 ): remixer is string {
   return Boolean(
-    remixer &&
-      !ownerArtists.some((owner) => artistNamesEqual(owner, remixer)),
+    remixer && !ownerArtists.some((owner) => artistNamesEqual(owner, remixer)),
   );
 }
 
@@ -344,7 +341,9 @@ function followedWhitelistHit(
 
   for (const credit of credits) {
     if (ownerArtists.some((owner) => artistNamesEqual(owner, credit))) continue;
-    if (followedArtists.some((followed) => artistNamesMatch(followed, credit))) {
+    if (
+      followedArtists.some((followed) => artistNamesMatch(followed, credit))
+    ) {
       return credit;
     }
   }
@@ -582,7 +581,10 @@ export async function mapInChunks<T, R>(
     const batch = await Promise.all(
       slice.map((item, offset) => mapper(item, i + offset)),
     );
-    for (let j = 0; j < batch.length; j++) results[i + j] = batch[j];
+    for (let j = 0; j < batch.length; j++) {
+      const value = batch[j];
+      if (value !== undefined) results[i + j] = value;
+    }
   }
   return results;
 }

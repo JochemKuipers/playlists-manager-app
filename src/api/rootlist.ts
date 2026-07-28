@@ -1,3 +1,4 @@
+import { mapInChunks } from "@/operations/trackFilters";
 import type { PlaylistCard } from "@/operations/types";
 import { LIKED_SONGS_PLAYLIST_IDS } from "@/operations/types";
 
@@ -12,17 +13,6 @@ type RootlistItem = {
   length?: number;
   items?: RootlistItem[];
 };
-
-const OWNERSHIP_CACHE_TTL_MS = 15_000;
-
-let ownedUris = new Set<string>();
-let cacheReady = false;
-let fetchedAt = 0;
-let loading: Promise<void> | null = null;
-
-function cacheIsFresh(): boolean {
-  return cacheReady && Date.now() - fetchedAt < OWNERSHIP_CACHE_TTL_MS;
-}
 
 function collectPlaylists(items: RootlistItem[]): RootlistItem[] {
   const playlists: RootlistItem[] = [];
@@ -57,60 +47,16 @@ export function isLikedSongsUri(uri?: string): boolean {
   return LIKED_SONGS_PLAYLIST_IDS.has(id);
 }
 
-export async function refreshOwnedPlaylistUris(
-  force = false,
-): Promise<Set<string>> {
-  if (!force && cacheIsFresh()) return ownedUris;
-  if (loading) {
-    await loading;
-    return ownedUris;
-  }
-
-  loading = (async () => {
-    try {
-      const currentUser = Spicetify.Platform.username as string | undefined;
-      if (!currentUser) {
-        cacheReady = true;
-        fetchedAt = Date.now();
-        return;
-      }
-      const rootlist = await Spicetify.Platform.RootlistAPI.getContents();
-      const playlists = collectPlaylists(rootlist?.items ?? []);
-      ownedUris = new Set();
-      for (const playlist of playlists) {
-        if (playlist.uri && isOwned(playlist, currentUser)) {
-          ownedUris.add(playlist.uri);
-        }
-      }
-    } catch (error) {
-      console.warn("[WARN] Failed to refresh owned playlist cache:", error);
-    } finally {
-      cacheReady = true;
-      fetchedAt = Date.now();
-      loading = null;
-    }
-  })();
-
-  await loading;
-  return ownedUris;
-}
-
-export function isOwnedPlaylist(uri: string): boolean {
-  return ownedUris.has(uri);
-}
-
 export async function listOwnedPlaylists(): Promise<PlaylistCard[]> {
   const currentUser = Spicetify.Platform.username as string | undefined;
   const rootlist = await Spicetify.Platform.RootlistAPI.getContents();
   const playlists = collectPlaylists(rootlist?.items ?? []);
 
-  ownedUris = new Set();
   const cards: PlaylistCard[] = [];
 
   for (const playlist of playlists) {
     if (!playlist.uri || isLikedSongsUri(playlist.uri)) continue;
     const owned = currentUser ? isOwned(playlist, currentUser) : false;
-    if (owned) ownedUris.add(playlist.uri);
     if (!owned) continue;
 
     cards.push({
@@ -122,12 +68,10 @@ export async function listOwnedPlaylists(): Promise<PlaylistCard[]> {
     });
   }
 
-  cacheReady = true;
-  fetchedAt = Date.now();
-
-  // Hydrate missing images / counts in parallel where rootlist was sparse
-  await Promise.all(
-    cards.map(async (card) => {
+  // ponytail: chunk 8, raise if open still stalls on huge libraries
+  await mapInChunks(
+    cards,
+    async (card) => {
       if (card.imageUrl && card.trackCount > 0) return;
       try {
         const meta = await Spicetify.Platform.PlaylistAPI.getMetadata(card.uri);
@@ -142,7 +86,8 @@ export async function listOwnedPlaylists(): Promise<PlaylistCard[]> {
       } catch {
         // keep rootlist data
       }
-    }),
+    },
+    8,
   );
 
   return cards.sort((a, b) => a.name.localeCompare(b.name));

@@ -42,37 +42,44 @@ async function startOperation(operation: OperationKind) {
   const signal = beginRun(uris);
   let doneCount = 0;
 
-  const results = await runBatch({
-    kind: operation,
-    uris,
-    signal,
-    callbacks: {
-      onProgress: handleProgress,
-      onItemStart: handleItemStart,
-      onItemDone: (result) => {
-        doneCount += 1;
-        handleItemDone(result, uris.length, doneCount);
+  try {
+    const results = await runBatch({
+      kind: operation,
+      uris,
+      signal,
+      callbacks: {
+        onProgress: handleProgress,
+        onItemStart: handleItemStart,
+        onItemDone: (result) => {
+          doneCount += 1;
+          handleItemDone(result, uris.length, doneCount);
+        },
       },
-    },
-  });
+    });
 
-  const ok = results.filter((r) => r.ok).length;
-  const failed = results.filter((r) => !r.ok && !r.aborted).length;
-  const aborted = results.filter((r) => r.aborted).length;
-  const added = results.reduce((sum, r) => sum + (r.added ?? 0), 0);
-  const removed = results.reduce((sum, r) => sum + (r.removed ?? 0), 0);
-  const liked = results.reduce((sum, r) => sum + (r.liked ?? 0), 0);
+    const ok = results.filter((r) => r.ok).length;
+    const failed = results.filter((r) => !r.ok && !r.aborted).length;
+    const aborted = results.filter((r) => r.aborted).length;
+    const added = results.reduce((sum, r) => sum + (r.added ?? 0), 0);
+    const removed = results.reduce((sum, r) => sum + (r.removed ?? 0), 0);
+    const liked = results.reduce((sum, r) => sum + (r.liked ?? 0), 0);
 
-  const parts = [`Finished: ${ok} ok`];
-  if (failed) parts.push(`${failed} failed`);
-  if (aborted) parts.push(`${aborted} aborted`);
-  if (added) parts.push(`${added} added`);
-  if (removed) parts.push(`${removed} removed`);
-  if (liked) parts.push(`${liked} liked`);
+    const parts = [`Finished: ${ok} ok`];
+    if (failed) parts.push(`${failed} failed`);
+    if (aborted) parts.push(`${aborted} aborted`);
+    if (added) parts.push(`${added} added`);
+    if (removed) parts.push(`${removed} removed`);
+    if (liked) parts.push(`${liked} liked`);
 
-  const summary = parts.join(" · ");
-  endRun(summary);
-  Spicetify.showNotification(summary, failed > 0);
+    const summary = parts.join(" · ");
+    endRun(summary, failed > 0 ? "error" : "success");
+    Spicetify.showNotification(summary, failed > 0);
+  } catch (error) {
+    console.error(error);
+    const message = error instanceof Error ? error.message : "Operation failed";
+    endRun(message, "error");
+    Spicetify.showNotification("Operation failed", true);
+  }
 }
 
 function App() {
@@ -127,4 +134,34 @@ function App() {
   );
 }
 
-export default App;
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className={styles.container}>
+          <div className={styles.errorBanner}>
+            Playlist Manager crashed: {this.state.error.message}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function Root() {
+  return (
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
+  );
+}

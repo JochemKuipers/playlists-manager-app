@@ -14,14 +14,14 @@ export function findDuplicates(tracks: PlaylistTrack[]): DuplicateGroup[] {
 
   const grouped: DuplicateGroup[] = [];
   for (const groupTracks of byName.values()) {
-    if (groupTracks.length > 1) {
-      grouped.push({
-        tracks: groupTracks,
-        displayName: groupTracks[0].name,
-        displayArtist: groupTracks[0].artists.join(", "),
-        displayImage: groupTracks[0].albumImageUrl,
-      });
-    }
+    const first = groupTracks[0];
+    if (!first || groupTracks.length <= 1) continue;
+    grouped.push({
+      tracks: groupTracks,
+      displayName: first.name,
+      displayArtist: first.artists.join(", "),
+      displayImage: first.albumImageUrl,
+    });
   }
 
   return findExactDuplicates(grouped);
@@ -51,8 +51,10 @@ function findExactDuplicates(
       for (const track of artistTracks) {
         let added = false;
         for (const durationGroup of durationGroups) {
+          const anchor = durationGroup[0];
           if (
-            isDurationWithinRange(track.durationMs, durationGroup[0].durationMs)
+            anchor &&
+            isDurationWithinRange(track.durationMs, anchor.durationMs)
           ) {
             durationGroup.push(track);
             added = true;
@@ -63,14 +65,14 @@ function findExactDuplicates(
       }
 
       for (const durationGroup of durationGroups) {
-        if (durationGroup.length > 1) {
-          result.push({
-            tracks: durationGroup,
-            displayName: durationGroup[0].name,
-            displayArtist: durationGroup[0].artists.join(", "),
-            displayImage: durationGroup[0].albumImageUrl,
-          });
-        }
+        const first = durationGroup[0];
+        if (!first || durationGroup.length <= 1) continue;
+        result.push({
+          tracks: durationGroup,
+          displayName: first.name,
+          displayArtist: first.artists.join(", "),
+          displayImage: first.albumImageUrl,
+        });
       }
     }
   }

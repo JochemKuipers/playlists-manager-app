@@ -1,11 +1,12 @@
-import { getArtistTracks, searchArtist } from "@/api/graphql";
 import { fetchFollowedArtistNames } from "@/api/following";
+import { getArtistTracks, searchArtist } from "@/api/graphql";
 import {
   addTracksToPlaylist,
   fetchPlaylistTracks,
   getPlaylistMetadata,
 } from "@/api/playlist";
 import {
+  abortable,
   addDurationEntry,
   normalizeDuration,
   normalizeTrackName,
@@ -64,8 +65,9 @@ export async function updatePlaylist(
     throwIfAborted(signal);
     emit(`Found ${artistNames.length} artist(s) — searching…`, "info", 0.15);
 
-    const artistResults = await Promise.all(
-      artistNames.map((name) => searchArtist(name)),
+    const artistResults = await abortable(
+      Promise.all(artistNames.map((name) => searchArtist(name))),
+      signal,
     );
     const artistUris = artistResults.filter((uri): uri is string =>
       Boolean(uri),
@@ -90,14 +92,18 @@ export async function updatePlaylist(
       0.3,
     );
 
-    const trackBatches = await Promise.all(
-      artistUris.map((uri) => getArtistTracks(uri)),
+    const trackBatches = await abortable(
+      Promise.all(artistUris.map((uri) => getArtistTracks(uri))),
+      signal,
     );
     const allArtistTracks = trackBatches.flat();
     emit(`Fetched ${allArtistTracks.length} artist track(s)`, "info", 0.55);
 
     throwIfAborted(signal);
-    const existingTracks = await fetchPlaylistTracks(playlistUri);
+    const existingTracks = await abortable(
+      fetchPlaylistTracks(playlistUri),
+      signal,
+    );
     emit(`Loaded ${existingTracks.length} existing track(s)`, "info", 0.65);
 
     const existingTrackUris = new Set(existingTracks.map((t) => t.uri));
@@ -169,14 +175,16 @@ export async function updatePlaylist(
     let skipped = 0;
     for (let i = 0; i < candidates.length; i++) {
       const verdict = verdicts[i];
+      const candidate = candidates[i];
+      if (!verdict || !candidate) continue;
       if (verdict.junk) {
         skipped += 1;
         if (skipped <= 8) {
-          emit(`Skip add "${candidates[i].name}" — ${verdict.reason}`, "skip");
+          emit(`Skip add "${candidate.name}" — ${verdict.reason}`, "skip");
         }
         continue;
       }
-      newTrackUris.push(candidates[i].uri);
+      newTrackUris.push(candidate.uri);
     }
     if (skipped > 8) {
       emit(`…and ${skipped - 8} more skipped by filters`, "skip");
@@ -198,17 +206,30 @@ export async function updatePlaylist(
 
     throwIfAborted(signal);
     emit(`Adding ${newTrackUris.length} track(s)…`, "add", 0.85);
-    const added = await addTracksToPlaylist(playlistUri, newTrackUris);
-    if (!added) {
+    const added = await abortable(
+      addTracksToPlaylist(playlistUri, newTrackUris),
+      signal,
+    );
+    if (added === 0) {
       return { playlistUri, ok: false, message: "Failed to add tracks" };
     }
 
-    emit(`Added ${newTrackUris.length} track(s)`, "add", 1);
+    if (added < newTrackUris.length) {
+      emit(`Added ${added}/${newTrackUris.length} track(s)`, "add", 1);
+      return {
+        playlistUri,
+        ok: false,
+        added,
+        message: `Added ${added}/${newTrackUris.length} (partial failure)`,
+      };
+    }
+
+    emit(`Added ${added} track(s)`, "add", 1);
     return {
       playlistUri,
       ok: true,
-      added: newTrackUris.length,
-      message: `Added ${newTrackUris.length} track(s)`,
+      added,
+      message: `Added ${added} track(s)`,
     };
   } catch (error) {
     if ((error as Error)?.name === "AbortError") {

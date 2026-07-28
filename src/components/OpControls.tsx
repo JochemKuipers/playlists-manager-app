@@ -4,6 +4,8 @@ import { requestStop, setOperation } from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
+void React;
+
 const OPS: { id: OperationKind; label: string; hint: string }[] = [
   {
     id: "update",

@@ -1,5 +1,5 @@
 import Fuse from "fuse.js";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getLikedSongsTrackCount } from "@/api/library";
 import type { ItemStatus, PlaylistCard } from "@/operations/types";
 import { LIKED_SONGS_IMAGE_URL, LIKED_SONGS_URI } from "@/operations/types";
@@ -11,6 +11,9 @@ import {
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
+// Spicetify creator bundles with classic JSX (needs React in scope).
+void React;
+
 const FUSE_OPTS: import("fuse.js").IFuseOptions<PlaylistCard> = {
   keys: ["name"],
   threshold: 0.4,
@@ -19,15 +22,15 @@ const FUSE_OPTS: import("fuse.js").IFuseOptions<PlaylistCard> = {
 function statusClass(status: ItemStatus): string {
   switch (status) {
     case "running":
-      return styles.badgeRunning;
+      return styles.badgeRunning ?? "";
     case "done":
-      return styles.badgeDone;
+      return styles.badgeDone ?? "";
     case "failed":
-      return styles.badgeFailed;
+      return styles.badgeFailed ?? "";
     case "skipped":
-      return styles.badgeSkipped;
+      return styles.badgeSkipped ?? "";
     default:
-      return styles.badgeIdle;
+      return styles.badgeIdle ?? "";
   }
 }
 
@@ -141,17 +144,26 @@ export function PlaylistGrid() {
     playlistQuery,
   } = useOperationStore();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh count after operations
   useEffect(() => {
     if (mode !== "liked") return;
     let cancelled = false;
     void (async () => {
-      const count = await getLikedSongsTrackCount();
-      if (!cancelled) setLikedTrackCount(count);
+      try {
+        const count = await getLikedSongsTrackCount();
+        if (!cancelled) setLikedTrackCount(count);
+      } catch (error) {
+        console.error("[ERROR] Failed to count Liked Songs:", error);
+        if (!cancelled) setLikedTrackCount(null);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [mode, running]);
+
+  const fuse = useMemo(() => new Fuse(playlists, FUSE_OPTS), [playlists]);
+  const q = playlistQuery.trim();
 
   if (loadError) {
     return <div className={styles.errorBanner}>{loadError}</div>;
@@ -160,8 +172,6 @@ export function PlaylistGrid() {
   if (loadingPlaylists) {
     return <div className={styles.empty}>Loading playlists…</div>;
   }
-
-  const q = playlistQuery.trim();
 
   if (mode === "liked") {
     const likedCard: PlaylistCard = {
@@ -200,10 +210,7 @@ export function PlaylistGrid() {
     return <div className={styles.empty}>No owned playlists found.</div>;
   }
 
-  const filtered =
-    q === ""
-      ? playlists
-      : new Fuse(playlists, FUSE_OPTS).search(q).map((r) => r.item);
+  const filtered = q === "" ? playlists : fuse.search(q).map((r) => r.item);
   const selectable = !running;
 
   return (

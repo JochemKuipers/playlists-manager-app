@@ -241,11 +241,11 @@ export function handleItemDone(
   );
 }
 
-export function endRun(summary: string): void {
+export function endRun(summary: string, kind: LogKind = "success"): void {
   data.running = false;
   data.overallProgress = 1;
   abortController = null;
-  appendLog(summary, "success");
+  appendLog(summary, kind);
 }
 
 export function requestStop(): void {

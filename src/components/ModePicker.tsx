@@ -4,6 +4,8 @@ import { clearSelection, selectAll, setMode } from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
 
+void React;
+
 const MODES: { id: SelectionMode; label: string }[] = [
   { id: "playlists", label: "Playlists" },
   { id: "liked", label: "Liked Songs" },

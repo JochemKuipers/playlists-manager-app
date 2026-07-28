@@ -39,9 +39,7 @@ bun run dev
 
 ### Modes
 
-- **All playlists** — every owned playlist
-- **Selection** — multi-select
-- **Single** — one playlist
+- **Playlists** — multi-select owned playlists (Select all / Clear)
 - **Liked Songs** — Clean only
 
 Update playlists should be named like `Radiohead / Thom Yorke` (artists separated by `/`).
@@ -54,6 +52,8 @@ Update playlists should be named like `Radiohead / Thom Yorke` (artists separate
 | `bun run build`        | Production bundle → `dist/` |
 | `bun run build -- -a`  | Build and `spicetify apply` |
 | `bun run lint`         | Biome check                 |
+| `bun run typecheck`    | `tsc --noEmit`              |
+| `bun test`             | Unit tests                  |
 | `bun run update-types` | Refresh Spicetify globals   |
 | `bun run clean-spice`  | Remove creator HMR helpers  |
 

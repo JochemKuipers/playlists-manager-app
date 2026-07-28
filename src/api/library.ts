@@ -15,88 +15,89 @@ type RawLiked = {
   uid?: string;
 };
 
+type LibraryTracksResponse = {
+  items?: RawLiked[];
+  totalLength?: number;
+  totalCount?: number;
+  total?: number;
+  length?: number;
+};
+
+function mapLikedItems(items: RawLiked[]): PlaylistTrack[] {
+  return items
+    .filter((track) => track.isPlayable !== false)
+    .map((track, index) => ({
+      uri: track.uri,
+      name: track.name,
+      durationMs:
+        track.duration?.milliseconds ??
+        track.durationMs ??
+        track.duration_ms ??
+        0,
+      artists: (track.artists ?? [])
+        .map((a) => a.name)
+        .filter((n): n is string => Boolean(n)),
+      albumName: track.album?.name,
+      isLocal: track.uri.startsWith("spotify:local:"),
+      isExplicit: track.isExplicit ?? track.is_explicit ?? false,
+      albumImageUrl: track.album?.images?.[0]?.url,
+      uid: track.uid,
+      index,
+    }));
+}
+
 export async function fetchAllLikedSongsTracks(): Promise<PlaylistTrack[]> {
-  try {
-    // ponytail: LibraryAPI over dead CosmosAsync collection endpoints
-    const res = await Spicetify.Platform.LibraryAPI.getTracks({ limit: -1 });
-    const items = (res?.items ?? []) as RawLiked[];
-    return items
-      .filter((track) => track.isPlayable !== false)
-      .map((track, index) => ({
-        uri: track.uri,
-        name: track.name,
-        durationMs:
-          track.duration?.milliseconds ??
-          track.durationMs ??
-          track.duration_ms ??
-          0,
-        artists: (track.artists ?? [])
-          .map((a) => a.name)
-          .filter((n): n is string => Boolean(n)),
-        albumName: track.album?.name,
-        isLocal: track.uri.startsWith("spotify:local:"),
-        isExplicit: track.isExplicit ?? track.is_explicit ?? false,
-        albumImageUrl: track.album?.images?.[0]?.url,
-        uid: track.uid,
-        index,
-      }));
-  } catch (error) {
-    console.error("[ERROR] Failed to fetch Liked Songs:", error);
-    return [];
+  // ponytail: LibraryAPI over dead CosmosAsync collection endpoints
+  const res = (await Spicetify.Platform.LibraryAPI.getTracks({
+    limit: -1,
+  })) as LibraryTracksResponse;
+  if (!Array.isArray(res.items)) {
+    throw new Error("Unexpected LibraryAPI shape");
   }
+  return mapLikedItems(res.items);
 }
 
 export async function getLikedSongsTrackCount(): Promise<number> {
-  try {
-    const res = await Spicetify.Platform.LibraryAPI.getTracks({
-      limit: 1,
-      offset: 0,
-    });
-    const total =
-      res?.totalLength ??
-      res?.totalCount ??
-      res?.total ??
-      res?.length ??
-      null;
-    if (typeof total === "number" && total >= 0) return total;
+  const res = (await Spicetify.Platform.LibraryAPI.getTracks({
+    limit: 1,
+    offset: 0,
+  })) as LibraryTracksResponse;
+  const total =
+    res.totalLength ?? res.totalCount ?? res.total ?? res.length ?? null;
+  if (typeof total === "number" && total >= 0) return total;
 
-    // Fallback: full fetch when API omits a total field
-    const all = await fetchAllLikedSongsTracks();
-    return all.length;
-  } catch (error) {
-    console.error("[ERROR] Failed to count Liked Songs:", error);
-    return 0;
-  }
+  const all = await fetchAllLikedSongsTracks();
+  return all.length;
 }
 
 export async function removeTracksFromLikedSongs(
   trackUris: string[],
-): Promise<number> {
-  let removedCount = 0;
+): Promise<string[]> {
+  const removed: string[] = [];
   for (let i = 0; i < trackUris.length; i += API_BATCH_SIZE) {
     const batch = trackUris.slice(i, i + API_BATCH_SIZE);
     try {
       await Spicetify.Platform.LibraryAPI.remove({ uris: batch });
-      removedCount += batch.length;
+      removed.push(...batch);
     } catch (error) {
       console.error("[ERROR] LibraryAPI.remove failed:", error);
     }
   }
-  return removedCount;
+  return removed;
 }
 
 export async function addTracksToLikedSongs(
   trackUris: string[],
-): Promise<number> {
-  let likedCount = 0;
+): Promise<string[]> {
+  const liked: string[] = [];
   for (let i = 0; i < trackUris.length; i += API_BATCH_SIZE) {
     const batch = trackUris.slice(i, i + API_BATCH_SIZE);
     try {
       await Spicetify.Platform.LibraryAPI.add({ uris: batch });
-      likedCount += batch.length;
+      liked.push(...batch);
     } catch (error) {
       console.error("[ERROR] LibraryAPI.add failed:", error);
     }
   }
-  return likedCount;
+  return liked;
 }
