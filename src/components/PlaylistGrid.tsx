@@ -1,13 +1,20 @@
-import React, { useEffect } from "react";
+import Fuse from "fuse.js";
+import React, { useEffect, useState } from "react";
 import { getLikedSongsTrackCount } from "@/api/library";
 import type { ItemStatus, PlaylistCard } from "@/operations/types";
+import { LIKED_SONGS_IMAGE_URL, LIKED_SONGS_URI } from "@/operations/types";
 import {
-  LIKED_SONGS_IMAGE_URL,
-  LIKED_SONGS_URI,
-} from "@/operations/types";
-import { setLikedTrackCount, toggleSelect } from "@/store/operationStore";
+  setLikedTrackCount,
+  setPlaylistQuery,
+  toggleSelect,
+} from "@/store/operationStore";
 import { useOperationStore } from "@/store/useOperationStore";
 import styles from "../css/app.module.scss";
+
+const FUSE_OPTS: import("fuse.js").IFuseOptions<PlaylistCard> = {
+  keys: ["name"],
+  threshold: 0.4,
+};
 
 function statusClass(status: ItemStatus): string {
   switch (status) {
@@ -79,6 +86,47 @@ function PlaylistCardView({
   );
 }
 
+function PlaylistSearch() {
+  const { playlistQuery } = useOperationStore();
+  const [draft, setDraft] = useState(playlistQuery);
+
+  useEffect(() => {
+    setDraft(playlistQuery);
+  }, [playlistQuery]);
+
+  useEffect(() => {
+    if (draft === playlistQuery) return;
+    const id = window.setTimeout(() => setPlaylistQuery(draft), 200);
+    return () => window.clearTimeout(id);
+  }, [draft, playlistQuery]);
+
+  return (
+    <div className={styles.playlistSearch}>
+      <input
+        type="search"
+        className={`${styles.textInput} ${styles.playlistSearchInput}`}
+        placeholder="Search playlists…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        aria-label="Search playlists"
+      />
+      {draft !== "" && (
+        <button
+          type="button"
+          className={styles.playlistSearchClear}
+          onClick={() => {
+            setDraft("");
+            setPlaylistQuery("");
+          }}
+          aria-label="Clear search"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PlaylistGrid() {
   const {
     mode,
@@ -90,6 +138,7 @@ export function PlaylistGrid() {
     loadError,
     running,
     likedTrackCount,
+    playlistQuery,
   } = useOperationStore();
 
   useEffect(() => {
@@ -112,27 +161,38 @@ export function PlaylistGrid() {
     return <div className={styles.empty}>Loading playlists…</div>;
   }
 
+  const q = playlistQuery.trim();
+
   if (mode === "liked") {
-    const status = statuses.get(LIKED_SONGS_URI) ?? "idle";
-    const progress = itemProgress.get(LIKED_SONGS_URI) ?? 0;
+    const likedCard: PlaylistCard = {
+      uri: LIKED_SONGS_URI,
+      name: "Liked Songs",
+      trackCount: likedTrackCount ?? -1,
+      imageUrl: LIKED_SONGS_IMAGE_URL,
+      owned: true,
+    };
+    const show =
+      q === "" || new Fuse([likedCard], FUSE_OPTS).search(q).length > 0;
+
     return (
-      <div className={styles.playlistGrid}>
-        <div className={styles.cardCell}>
-          <PlaylistCardView
-            card={{
-              uri: LIKED_SONGS_URI,
-              name: "Liked Songs",
-              trackCount: likedTrackCount ?? -1,
-              imageUrl: LIKED_SONGS_IMAGE_URL,
-              owned: true,
-            }}
-            selected
-            status={status}
-            progress={progress}
-            selectable={false}
-          />
-        </div>
-      </div>
+      <>
+        <PlaylistSearch />
+        {show ? (
+          <div className={styles.playlistGrid}>
+            <div className={styles.cardCell}>
+              <PlaylistCardView
+                card={likedCard}
+                selected
+                status={statuses.get(LIKED_SONGS_URI) ?? "idle"}
+                progress={itemProgress.get(LIKED_SONGS_URI) ?? 0}
+                selectable={false}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className={styles.empty}>No playlists match.</div>
+        )}
+      </>
     );
   }
 
@@ -140,21 +200,32 @@ export function PlaylistGrid() {
     return <div className={styles.empty}>No owned playlists found.</div>;
   }
 
+  const filtered =
+    q === ""
+      ? playlists
+      : new Fuse(playlists, FUSE_OPTS).search(q).map((r) => r.item);
   const selectable = !running;
 
   return (
-    <div className={styles.playlistGrid}>
-      {playlists.map((card) => (
-        <div key={card.uri} className={styles.cardCell}>
-          <PlaylistCardView
-            card={card}
-            selected={selected.has(card.uri)}
-            status={statuses.get(card.uri) ?? "idle"}
-            progress={itemProgress.get(card.uri) ?? 0}
-            selectable={selectable}
-          />
+    <>
+      <PlaylistSearch />
+      {filtered.length === 0 ? (
+        <div className={styles.empty}>No playlists match.</div>
+      ) : (
+        <div className={styles.playlistGrid}>
+          {filtered.map((card) => (
+            <div key={card.uri} className={styles.cardCell}>
+              <PlaylistCardView
+                card={card}
+                selected={selected.has(card.uri)}
+                status={statuses.get(card.uri) ?? "idle"}
+                progress={itemProgress.get(card.uri) ?? 0}
+                selectable={selectable}
+              />
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }

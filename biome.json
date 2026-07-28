@@ -32,5 +32,8 @@
         "organizeImports": "on"
       }
     }
+  },
+  "javascript": {
+    "jsxRuntime": "reactClassic"
   }
 }

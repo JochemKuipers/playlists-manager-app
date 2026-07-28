@@ -206,6 +206,41 @@
   flex-shrink: 0;
 }
 
+.playlistSearch {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.playlistSearchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2rem;
+}
+
+.playlistSearchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.playlistSearchClear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--spice-subtext);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.playlistSearchClear:hover {
+  color: var(--spice-text);
+}
+
 .playlistGrid {
   display: grid;
   /* 75% of original ~180px (= 25% smaller, not 50%) */
@@ -246,6 +281,14 @@
 
 .card:hover {
   background: color-mix(in srgb, var(--spice-highlight) 28%, transparent);
+}
+
+.card:hover:not(.cardSelected) {
+  border-color: color-mix(
+    in srgb,
+    var(--spice-misc, var(--spice-subtext)) 45%,
+    transparent
+  );
 }
 
 .cardSelected {
