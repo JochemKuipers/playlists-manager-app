@@ -1,27 +1,33 @@
 # Playlist Manager
 
+> **AI disclosure:** Substantial portions of this project were developed with AI coding assistants (Cursor / Composer and similar tools). All code was reviewed and accepted by a human maintainer, who remains responsible for its behavior. Treat this repo like any other community Spicetify app: review before you install.
+
 Spicetify custom app to **Update** artist playlists from discography, **Clean** duplicates, and **Like Missing** tracks — with multi-playlist selection and live progress UI.
 
 Bootstrapped with [@spicemod/creator](https://github.com/sanoojes/spicetify-creator) (formerly `@spicetify/creator`).
+
+![Playlist Manager preview](preview.png)
 
 ## Install & apply
 
 Requires [Spicetify](https://spicetify.app/docs/getting-started) and [Bun](https://bun.sh).
 
 ```bash
+git clone https://github.com/JochemKuipers/playlists-manager-app.git
+cd playlists-manager-app
 bun install
 bun run build -- -a
 ```
 
 `-a` builds, copies the app into Spicetify’s `CustomApps` folder, and runs `spicetify apply`.
 
+Then open **Playlist Manager** in Spotify’s left sidebar.
+
 For development with hot reload:
 
 ```bash
 bun run dev
 ```
-
-Then open **Playlist Manager** in Spotify’s left sidebar.
 
 ## Operations
 

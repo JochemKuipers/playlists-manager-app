@@ -1,0 +1,13 @@
+{
+  "name": "Playlist Manager",
+  "description": "Update artist playlists from discography, clean duplicates, and like missing tracks — with multi-playlist selection and live progress.",
+  "preview": "preview.png",
+  "readme": "README.md",
+  "authors": [
+    {
+      "name": "JochemKuipers",
+      "url": "https://github.com/JochemKuipers"
+    }
+  ],
+  "tags": ["playlists", "library", "duplicates", "liked-songs"]
+}
