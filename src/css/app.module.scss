@@ -245,7 +245,7 @@
   display: grid;
   /* 75% of original ~180px (= 25% smaller, not 50%) */
   grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-  grid-auto-rows: 210px;
+  grid-auto-rows: auto;
   gap: 8px;
   flex: 1;
   min-height: 0;
@@ -256,7 +256,6 @@
 
 .cardCell {
   min-width: 0;
-  height: 100%;
 }
 
 .card {
@@ -274,7 +273,6 @@
   transition: border-color 160ms ease, background 160ms ease;
   min-width: 0;
   width: 100%;
-  height: 100%;
   box-sizing: border-box;
   overflow: hidden;
 }
