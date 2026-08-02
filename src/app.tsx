@@ -91,8 +91,7 @@ function App() {
     startWhatsNewAutoSync();
   }, []);
 
-  const targetCount =
-    operation === "whatsNew" || mode === "liked" ? 1 : selected.size;
+  const targetCount = mode === "liked" ? 1 : selected.size;
 
   return (
     <div className={styles.container}>
@@ -105,11 +104,16 @@ function App() {
       </header>
 
       <div className={styles.toolbar}>
-        <ModePicker />
+        <ModePicker
+          onWhatsNew={() => {
+            if (!running) void startOperation("whatsNew");
+          }}
+        />
         <OpControls
           targetCount={targetCount}
           onStart={() => {
-            if (!running) void startOperation(operation);
+            if (!running && operation !== "whatsNew")
+              void startOperation(operation);
           }}
         />
       </div>

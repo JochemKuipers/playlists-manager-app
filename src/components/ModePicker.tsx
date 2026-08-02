@@ -11,7 +11,11 @@ const MODES: { id: SelectionMode; label: string }[] = [
   { id: "liked", label: "Liked Songs" },
 ];
 
-export function ModePicker() {
+type Props = {
+  onWhatsNew: () => void;
+};
+
+export function ModePicker({ onWhatsNew }: Props) {
   const { mode, running, playlists, selected } = useOperationStore();
   const allSelected =
     playlists.length > 0 && selected.size === playlists.length;
@@ -33,6 +37,17 @@ export function ModePicker() {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        className={styles.secondaryBtn}
+        title="Sync What's New feed → Liked Songs + matching artist playlists"
+        aria-label="What's New"
+        disabled={running}
+        onClick={onWhatsNew}
+      >
+        What&apos;s New
+      </button>
 
       {mode === "playlists" && (
         <div className={styles.selectActions}>

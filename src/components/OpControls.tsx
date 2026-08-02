@@ -22,11 +22,6 @@ const OPS: { id: OperationKind; label: string; hint: string }[] = [
     label: "Like Missing",
     hint: "Like playlist tracks that are not already in Liked Songs",
   },
-  {
-    id: "whatsNew",
-    label: "What's New",
-    hint: "Sync What's New feed → Liked Songs + matching artist playlists",
-  },
 ];
 
 type Props = {

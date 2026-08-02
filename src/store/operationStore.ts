@@ -114,6 +114,7 @@ export function setMode(mode: SelectionMode): void {
 
 export function setOperation(operation: OperationKind): void {
   if (data.running) return;
+  if (operation === "whatsNew") return;
   if (data.mode === "liked" && operation !== "clean") return;
   data.operation = operation;
   emit();
