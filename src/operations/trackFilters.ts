@@ -527,9 +527,15 @@ export async function evaluateJunkTrack(
     };
   }
 
-  if (settings.skipDjRemixes && isRemixTitle(track.name)) {
+  // Remix marker may live on the album title when the track name is bare
+  const remixTitle = isRemixTitle(track.name)
+    ? track.name
+    : isRemixTitle(album)
+      ? album
+      : null;
+  if (settings.skipDjRemixes && remixTitle) {
     return evaluateRemixJunk(
-      track,
+      remixTitle === track.name ? track : { ...track, name: remixTitle },
       ownerArtists,
       options?.cache,
       options?.followedArtists ?? [],

@@ -323,6 +323,58 @@ export async function fetchWhatsNewFeed(
   return albums;
 }
 
+function graphqlVariableNames(def: unknown): string[] {
+  const doc = def as {
+    definitions?: Array<{
+      variableDefinitions?: Array<{
+        variable?: { name?: { value?: string } };
+      }>;
+    }>;
+  };
+  const names: string[] = [];
+  for (const op of doc?.definitions ?? []) {
+    for (const v of op?.variableDefinitions ?? []) {
+      const name = v?.variable?.name?.value;
+      if (typeof name === "string" && name) names.push(name);
+    }
+  }
+  return names;
+}
+
+function seenMutationVariableCandidates(
+  ids: string[],
+  varNames: string[],
+): Record<string, unknown>[] {
+  const has = (n: string) => varNames.length === 0 || varNames.includes(n);
+  const candidates: Record<string, unknown>[] = [];
+
+  if (has("inputs")) {
+    candidates.push({
+      inputs: ids.map((id) => ({ id, state: "SEEN" })),
+    });
+  }
+  if (has("items")) {
+    candidates.push({
+      items: ids.map((id) => ({ id, state: "SEEN" })),
+    });
+  }
+  if (has("ids") && has("state")) {
+    candidates.push({ ids, state: "SEEN" });
+  }
+  if (has("itemIds") && has("state")) {
+    candidates.push({ itemIds: ids, state: "SEEN" });
+  }
+  // Fallbacks when we can't read variableDefinitions
+  if (candidates.length === 0) {
+    candidates.push(
+      { inputs: ids.map((id) => ({ id, state: "SEEN" })) },
+      { items: ids.map((id) => ({ id, state: "SEEN" })) },
+      { ids, state: "SEEN" },
+    );
+  }
+  return candidates;
+}
+
 /** Mark What's New feed items as SEEN. Soft-fails on errors. */
 export async function markWhatsNewItemsSeen(ids: string[]): Promise<void> {
   const unique = [...new Set(ids.filter((id) => id.length > 0))];
@@ -334,13 +386,29 @@ export async function markWhatsNewItemsSeen(ids: string[]): Promise<void> {
     return;
   }
 
+  const varNames = graphqlVariableNames(def);
   const batchSize = 50;
+
   for (let i = 0; i < unique.length; i += batchSize) {
     const batch = unique.slice(i, i + batchSize);
-    try {
-      await Spicetify.GraphQL.Request(def, { ids: batch, state: "SEEN" });
-    } catch (error) {
-      console.warn("[WARN] Failed to mark What's New items SEEN:", error);
+    const candidates = seenMutationVariableCandidates(batch, varNames);
+    let ok = false;
+    let lastError: unknown;
+    for (const vars of candidates) {
+      try {
+        await Spicetify.GraphQL.Request(def, vars);
+        ok = true;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!ok) {
+      console.warn(
+        "[WARN] Failed to mark What's New items SEEN:",
+        lastError,
+        varNames.length ? `vars=${varNames.join(",")}` : "",
+      );
     }
   }
 }

@@ -103,13 +103,31 @@ function writeCache(ids: Set<string>): void {
   }
 }
 
+/** Prefer CosmosAsync (avoids xpui CORS); fall back to fetch. */
 async function fetchJson(url: string): Promise<unknown> {
+  try {
+    if (Spicetify.CosmosAsync?.get) {
+      const body = await Spicetify.CosmosAsync.get(url);
+      if (body !== undefined && body !== null) return body;
+    }
+  } catch {
+    // fall through
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
   return res.json();
 }
 
 async function fetchText(url: string): Promise<string> {
+  try {
+    if (Spicetify.CosmosAsync?.get) {
+      const body = await Spicetify.CosmosAsync.get(url);
+      if (typeof body === "string") return body;
+      if (body !== undefined && body !== null) return JSON.stringify(body);
+    }
+  } catch {
+    // fall through
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
   return res.text();

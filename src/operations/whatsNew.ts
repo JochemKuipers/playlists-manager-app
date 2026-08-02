@@ -95,12 +95,18 @@ async function buildArtistPlaylistMap(
   return map;
 }
 
-function trackArtistIds(track: ArtistTrack, album: WhatsNewAlbum): string[] {
+/** Track credits only — never inflate with album-level artists. */
+function creditArtistIds(track: ArtistTrack): string[] {
   const ids = new Set<string>();
   for (const a of track.artists) {
     const id = extractArtistId(a.uri) ?? getArtistIdFromUri(a.uri);
     if (id) ids.add(id);
   }
+  return [...ids];
+}
+
+function feedArtistIds(album: WhatsNewAlbum): string[] {
+  const ids = new Set<string>();
   for (const a of album.artists) {
     const id = extractArtistId(a.uri) ?? getArtistIdFromUri(a.uri);
     if (id) ids.add(id);
@@ -277,13 +283,27 @@ export async function syncWhatsNew(
           return;
         }
 
-        const ownerNames = album.artists.map((a) => a.name).filter(Boolean);
+        const albumFeedIds = feedArtistIds(album);
+        const feedOwnerNames = album.artists.map((a) => a.name).filter(Boolean);
 
-        for (const track of tracks) {
-          const artistIds = trackArtistIds(track, album);
+        // If any track credits an owned-playlist artist, only keep those tracks
+        // (stops whole-album adds when a feature artist is on one song).
+        const playlistTracks = tracks.filter((t) =>
+          creditArtistIds(t).some((id) => artistPlaylists.has(id)),
+        );
+        const candidates =
+          playlistTracks.length > 0
+            ? playlistTracks
+            : tracks.filter((t) =>
+                creditArtistIds(t).some((id) => albumFeedIds.includes(id)),
+              );
+
+        for (const track of candidates) {
+          const trackIds = creditArtistIds(track);
+          const playlistHits = trackIds.filter((id) => artistPlaylists.has(id));
 
           if (settings.skipAiArtists) {
-            const aiHit = artistIds.some((id) => isAiArtist(id, aiIds));
+            const aiHit = trackIds.some((id) => isAiArtist(id, aiIds));
             if (aiHit) {
               aiSkipped += 1;
               if (aiSkipped <= 8) {
@@ -292,6 +312,19 @@ export async function syncWhatsNew(
               continue;
             }
           }
+
+          // Remix owners = playlist artists on the track, else feed album artists
+          const ownerNames =
+            playlistHits.length > 0
+              ? track.artists
+                  .filter((a) => {
+                    const id =
+                      extractArtistId(a.uri) ?? getArtistIdFromUri(a.uri);
+                    return id !== null && playlistHits.includes(id);
+                  })
+                  .map((a) => a.name)
+                  .filter(Boolean)
+              : feedOwnerNames;
 
           const verdict = await evaluateJunkTrack(
             {
@@ -318,7 +351,7 @@ export async function syncWhatsNew(
             toLike.push(track.uri);
           }
 
-          const targets = playlistUrisForTrack(artistIds, artistPlaylists);
+          const targets = playlistUrisForTrack(playlistHits, artistPlaylists);
           for (const targetUri of targets) {
             let index = playlistIndexes.get(targetUri);
             if (!index) {

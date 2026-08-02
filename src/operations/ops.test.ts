@@ -54,6 +54,7 @@ describe("shouldSkipAddingTrack", () => {
 describe("trackFilters", () => {
   test("isRemixTitle detects remix suffix", () => {
     expect(isRemixTitle("Song (DJ Foo Remix)")).toBe(true);
+    expect(isRemixTitle("I Want You - PatFromLastYear Remix")).toBe(true);
     expect(isRemixTitle("Song")).toBe(false);
   });
 
