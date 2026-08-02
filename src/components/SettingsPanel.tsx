@@ -6,10 +6,17 @@ import {
   evaluateLocalFilters,
   validatePattern,
 } from "@/operations/trackFilters";
+import { startWhatsNewAutoSync } from "@/operations/whatsNewAuto";
 import {
+  clampWhatsNewIntervalMinutes,
   type IgnoreSettings,
   loadIgnoreSettings,
+  loadWhatsNewAutoSettings,
   saveIgnoreSettings,
+  saveWhatsNewAutoSettings,
+  WHATS_NEW_AUTO_MAX_MINUTES,
+  WHATS_NEW_AUTO_MIN_MINUTES,
+  type WhatsNewAutoSettings,
 } from "@/settings";
 import styles from "../css/app.module.scss";
 
@@ -36,6 +43,9 @@ export function SettingsPanel() {
   const [settings, setSettings] = useState<IgnoreSettings>(() =>
     loadIgnoreSettings(),
   );
+  const [autoSettings, setAutoSettings] = useState<WhatsNewAutoSettings>(() =>
+    loadWhatsNewAutoSettings(),
+  );
   const [newPattern, setNewPattern] = useState("");
   const [patternError, setPatternError] = useState<string | null>(null);
   const [patternWarn, setPatternWarn] = useState<string | null>(null);
@@ -51,6 +61,16 @@ export function SettingsPanel() {
   const persist = (next: IgnoreSettings) => {
     setSettings(next);
     saveIgnoreSettings(next);
+  };
+
+  const persistAuto = (next: WhatsNewAutoSettings) => {
+    const clamped = {
+      ...next,
+      intervalMinutes: clampWhatsNewIntervalMinutes(next.intervalMinutes),
+    };
+    setAutoSettings(clamped);
+    saveWhatsNewAutoSettings(clamped);
+    startWhatsNewAutoSync();
   };
 
   const localPreview = useMemo(
@@ -254,6 +274,46 @@ export function SettingsPanel() {
               Block AI artists (What&apos;s New) — SoulOverAI + CennoxX +
               Zoundhub (≥80)
             </span>
+          </label>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              checked={autoSettings.enabled}
+              onChange={(e) =>
+                persistAuto({ ...autoSettings, enabled: e.target.checked })
+              }
+            />
+            <span>Auto-sync What&apos;s New (startup + timer)</span>
+          </label>
+          <label className={styles.toggleRow}>
+            <span>Auto-sync interval (minutes)</span>
+            <input
+              type="number"
+              className={styles.intervalInput}
+              min={WHATS_NEW_AUTO_MIN_MINUTES}
+              max={WHATS_NEW_AUTO_MAX_MINUTES}
+              step={1}
+              disabled={!autoSettings.enabled}
+              value={autoSettings.intervalMinutes}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setAutoSettings({
+                  ...autoSettings,
+                  intervalMinutes: Number.isFinite(n)
+                    ? n
+                    : autoSettings.intervalMinutes,
+                });
+              }}
+              onBlur={(e) => {
+                const n = Number(e.target.value);
+                persistAuto({
+                  ...autoSettings,
+                  intervalMinutes: Number.isFinite(n)
+                    ? n
+                    : autoSettings.intervalMinutes,
+                });
+              }}
+            />
           </label>
 
           <div className={styles.settingsBlock}>

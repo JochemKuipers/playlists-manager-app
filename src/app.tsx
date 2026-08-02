@@ -8,6 +8,7 @@ import { ProgressPanel } from "@/components/ProgressPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { runBatch } from "@/operations/batch";
 import type { OperationKind } from "@/operations/types";
+import { startWhatsNewAutoSync } from "@/operations/whatsNewAuto";
 import {
   beginRun,
   endRun,
@@ -87,6 +88,7 @@ function App() {
 
   useEffect(() => {
     void loadPlaylists();
+    startWhatsNewAutoSync();
   }, []);
 
   const targetCount =

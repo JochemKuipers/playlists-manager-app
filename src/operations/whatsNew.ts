@@ -3,6 +3,7 @@ import { fetchFollowedArtistNames } from "@/api/following";
 import {
   fetchWhatsNewFeed,
   getAlbumTracks,
+  markWhatsNewItemsSeen,
   searchArtist,
   type WhatsNewAlbum,
 } from "@/api/graphql";
@@ -39,6 +40,12 @@ import type { ProgressFn } from "./update";
 
 const CURSOR_KEY = "playlist-manager-whatsnew-cursor";
 const ALBUM_CONCURRENCY = 3;
+
+let syncLocked = false;
+
+export function isWhatsNewSyncRunning(): boolean {
+  return syncLocked;
+}
 
 function loadCursor(): string | null {
   try {
@@ -158,6 +165,15 @@ export async function syncWhatsNew(
   ) => {
     onProgress({ playlistUri, message, kind, progress });
   };
+
+  if (syncLocked) {
+    return {
+      playlistUri,
+      ok: false,
+      message: "What's New sync already running",
+    };
+  }
+  syncLocked = true;
 
   try {
     throwIfAborted(signal);
@@ -364,6 +380,12 @@ export async function syncWhatsNew(
       }
     }
 
+    const feedIds = albums.map((a) => a.feedItemId).filter(Boolean);
+    if (feedIds.length > 0) {
+      emit(`Marking ${feedIds.length} feed item(s) SEEN…`, "info", 0.96);
+      await abortable(markWhatsNewItemsSeen(feedIds), signal);
+    }
+
     if (maxTimestamp) saveCursor(maxTimestamp);
 
     const message = `What's New: liked ${liked}, added ${added} to playlists (${filtered} filtered, ${aiSkipped} AI)`;
@@ -391,5 +413,7 @@ export async function syncWhatsNew(
       message:
         error instanceof Error ? error.message : "What's New sync failed",
     };
+  } finally {
+    syncLocked = false;
   }
 }

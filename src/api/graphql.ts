@@ -246,6 +246,7 @@ export async function getAlbumTracks(
 }
 
 export type WhatsNewAlbum = {
+  feedItemId: string;
   uri: string;
   name: string;
   albumType: string;
@@ -302,7 +303,10 @@ export async function fetchWhatsNewFeed(
         artists.push({ uri: aUri, name: name || aUri });
       }
 
+      const feedItemId = typeof item?.id === "string" ? item.id : "";
+
       albums.push({
+        feedItemId,
         uri,
         name: typeof data.name === "string" ? data.name : "",
         albumType: typeof data.albumType === "string" ? data.albumType : "",
@@ -317,6 +321,28 @@ export async function fetchWhatsNewFeed(
   }
 
   return albums;
+}
+
+/** Mark What's New feed items as SEEN. Soft-fails on errors. */
+export async function markWhatsNewItemsSeen(ids: string[]): Promise<void> {
+  const unique = [...new Set(ids.filter((id) => id.length > 0))];
+  if (unique.length === 0) return;
+
+  const def = Spicetify.GraphQL.Definitions?.SetItemsStateInWhatsNewFeed;
+  if (!def) {
+    console.warn("[WARN] SetItemsStateInWhatsNewFeed unavailable");
+    return;
+  }
+
+  const batchSize = 50;
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    try {
+      await Spicetify.GraphQL.Request(def, { ids: batch, state: "SEEN" });
+    } catch (error) {
+      console.warn("[WARN] Failed to mark What's New items SEEN:", error);
+    }
+  }
 }
 
 export async function getTracksFromDiscography(

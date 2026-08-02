@@ -101,3 +101,67 @@ export function hasAnyIgnoreFilter(settings: IgnoreSettings): boolean {
     settings.customPatterns.some((p) => p.trim().length > 0)
   );
 }
+
+export type WhatsNewAutoSettings = {
+  enabled: boolean;
+  intervalMinutes: number;
+};
+
+const AUTO_STORAGE_KEY = "playlist-manager-whatsnew-autosync";
+export const WHATS_NEW_AUTO_MIN_MINUTES = 15;
+export const WHATS_NEW_AUTO_MAX_MINUTES = 1440;
+
+export const DEFAULT_WHATS_NEW_AUTO_SETTINGS: WhatsNewAutoSettings = {
+  enabled: false,
+  intervalMinutes: 60,
+};
+
+export function clampWhatsNewIntervalMinutes(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_WHATS_NEW_AUTO_SETTINGS.intervalMinutes;
+  }
+  return Math.min(
+    WHATS_NEW_AUTO_MAX_MINUTES,
+    Math.max(WHATS_NEW_AUTO_MIN_MINUTES, Math.round(value)),
+  );
+}
+
+export function loadWhatsNewAutoSettings(): WhatsNewAutoSettings {
+  try {
+    const raw = Spicetify.LocalStorage.get(AUTO_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_WHATS_NEW_AUTO_SETTINGS };
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!isObject(parsed)) return { ...DEFAULT_WHATS_NEW_AUTO_SETTINGS };
+
+    const minutes =
+      typeof parsed.intervalMinutes === "number"
+        ? parsed.intervalMinutes
+        : DEFAULT_WHATS_NEW_AUTO_SETTINGS.intervalMinutes;
+
+    return {
+      enabled: boolOrDefault(
+        parsed.enabled,
+        DEFAULT_WHATS_NEW_AUTO_SETTINGS.enabled,
+      ),
+      intervalMinutes: clampWhatsNewIntervalMinutes(minutes),
+    };
+  } catch (error) {
+    console.warn("[WARN] Failed to load What's New autosync settings:", error);
+    return { ...DEFAULT_WHATS_NEW_AUTO_SETTINGS };
+  }
+}
+
+export function saveWhatsNewAutoSettings(settings: WhatsNewAutoSettings): void {
+  try {
+    Spicetify.LocalStorage.set(
+      AUTO_STORAGE_KEY,
+      JSON.stringify({
+        enabled: settings.enabled,
+        intervalMinutes: clampWhatsNewIntervalMinutes(settings.intervalMinutes),
+      }),
+    );
+  } catch (error) {
+    console.warn("[WARN] Failed to save What's New autosync settings:", error);
+  }
+}
