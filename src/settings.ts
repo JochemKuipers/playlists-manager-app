@@ -5,6 +5,8 @@ export type IgnoreSettings = {
   skipInstrumental: boolean;
   skipCommentary: boolean;
   skipAcapella: boolean;
+  /** What's New only — block SoulOverAI / CennoxX / Zoundhub AI artists. */
+  skipAiArtists: boolean;
   customPatterns: string[];
 };
 
@@ -17,6 +19,7 @@ export const DEFAULT_IGNORE_SETTINGS: IgnoreSettings = {
   skipInstrumental: true,
   skipCommentary: true,
   skipAcapella: true,
+  skipAiArtists: true,
   customPatterns: [],
 };
 
@@ -24,10 +27,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function boolOrDefault(
-  value: unknown,
-  fallback: boolean,
-): boolean {
+function boolOrDefault(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
@@ -42,9 +42,7 @@ export function loadIgnoreSettings(): IgnoreSettings {
     }
 
     const patterns = Array.isArray(parsed.customPatterns)
-      ? parsed.customPatterns.filter(
-          (p): p is string => typeof p === "string",
-        )
+      ? parsed.customPatterns.filter((p): p is string => typeof p === "string")
       : [];
 
     return {
@@ -71,6 +69,10 @@ export function loadIgnoreSettings(): IgnoreSettings {
       skipAcapella: boolOrDefault(
         parsed.skipAcapella,
         DEFAULT_IGNORE_SETTINGS.skipAcapella,
+      ),
+      skipAiArtists: boolOrDefault(
+        parsed.skipAiArtists,
+        DEFAULT_IGNORE_SETTINGS.skipAiArtists,
       ),
       customPatterns: patterns,
     };

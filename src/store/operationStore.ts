@@ -8,7 +8,7 @@ import type {
   ProgressEvent,
   SelectionMode,
 } from "@/operations/types";
-import { LIKED_SONGS_URI } from "@/operations/types";
+import { LIKED_SONGS_URI, WHATS_NEW_URI } from "@/operations/types";
 
 export type OperationState = {
   mode: SelectionMode;
@@ -131,6 +131,7 @@ export function setPlaylists(playlists: PlaylistCard[]): void {
   const statuses = new Map<string, ItemStatus>();
   for (const p of playlists) statuses.set(p.uri, "idle");
   statuses.set(LIKED_SONGS_URI, "idle");
+  statuses.set(WHATS_NEW_URI, "idle");
   data.statuses = statuses;
   emit();
 }
@@ -254,6 +255,7 @@ export function requestStop(): void {
 }
 
 export function getTargetUris(): string[] {
+  if (data.operation === "whatsNew") return [WHATS_NEW_URI];
   if (data.mode === "liked") return [LIKED_SONGS_URI];
   return [...data.selected];
 }

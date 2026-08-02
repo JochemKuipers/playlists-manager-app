@@ -46,7 +46,7 @@ export type PlaylistCard = {
 };
 
 export type SelectionMode = "playlists" | "liked";
-export type OperationKind = "update" | "clean" | "likeMissing";
+export type OperationKind = "update" | "clean" | "likeMissing" | "whatsNew";
 export type ItemStatus = "idle" | "running" | "done" | "failed" | "skipped";
 
 export type LogKind = "info" | "add" | "remove" | "skip" | "error" | "success";
@@ -87,6 +87,7 @@ export const API_BATCH_SIZE = 50;
 export const ALBUM_FETCH_CONCURRENCY = 12;
 
 export const LIKED_SONGS_URI = "spotify:collection:tracks";
+export const WHATS_NEW_URI = "spotify:whats-new";
 export const LIKED_SONGS_PLAYLIST_IDS = new Set(["37i9dQZF1F5p3rmiWPIYgZ"]);
 export const LIKED_SONGS_IMAGE_URL =
   "https://misc.scdn.co/liked-songs/liked-songs-300.png";

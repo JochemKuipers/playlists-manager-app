@@ -165,17 +165,20 @@ function trackCreditsArtist(
 
 async function fetchAlbumTracks(
   album: ArtistAlbum,
-  artistUri: string,
+  artistUri: string | null,
   artistId: string | null,
   queryAlbumTracks: unknown,
 ): Promise<ArtistTrack[]> {
   const albumTracks: ArtistTrack[] = [];
   let offset = 0;
   let hasNextPage = true;
+  const albumUri = album.id.startsWith("spotify:album:")
+    ? album.id
+    : `spotify:album:${album.id}`;
 
   while (hasNextPage) {
     const { data, errors } = await Spicetify.GraphQL.Request(queryAlbumTracks, {
-      uri: `spotify:album:${album.id}`,
+      uri: albumUri,
       offset,
       limit: 50,
     });
@@ -191,16 +194,23 @@ async function fetchAlbumTracks(
     for (const item of items) {
       const track = (item.track || item) as RawAlbumTrack;
       const trackId = track.uri ? track.uri.split(":").pop() : null;
-      if (!trackId || !trackCreditsArtist(track, artistUri, artistId)) continue;
+      if (!trackId) continue;
+      if (artistUri && !trackCreditsArtist(track, artistUri, artistId)) {
+        continue;
+      }
 
       const durationMs = getDurationMs(track);
       if (!durationMs) continue;
+
+      const albumId = album.id.includes(":")
+        ? (album.id.split(":").pop() ?? album.id)
+        : album.id;
 
       albumTracks.push({
         id: trackId,
         name: track.name ?? "",
         uri: track.uri ?? "",
-        albumId: album.id,
+        albumId,
         albumName: album.name,
         trackNumber: track.trackNumber || track.track_number || 0,
         durationMs,
@@ -213,6 +223,100 @@ async function fetchAlbumTracks(
   }
 
   return albumTracks;
+}
+
+/** All tracks on an album (no artist-credit filter). */
+export async function getAlbumTracks(
+  albumUri: string,
+  albumName = "",
+): Promise<ArtistTrack[]> {
+  const queryAlbumTracks = Spicetify.GraphQL?.Definitions?.queryAlbumTracks;
+  if (!queryAlbumTracks) {
+    throw new Error("queryAlbumTracks unavailable");
+  }
+  const id = albumUri.startsWith("spotify:album:")
+    ? (albumUri.split(":").pop() ?? albumUri)
+    : albumUri;
+  return fetchAlbumTracks(
+    { id, name: albumName, date: "", albumType: "" },
+    null,
+    null,
+    queryAlbumTracks,
+  );
+}
+
+export type WhatsNewAlbum = {
+  uri: string;
+  name: string;
+  albumType: string;
+  timestamp: string;
+  artists: { uri: string; name: string }[];
+};
+
+export async function fetchWhatsNewFeed(
+  signal?: AbortSignal,
+): Promise<WhatsNewAlbum[]> {
+  const def = Spicetify.GraphQL.Definitions?.queryWhatsNewFeed;
+  if (!def) {
+    throw new Error("queryWhatsNewFeed unavailable");
+  }
+
+  const albums: WhatsNewAlbum[] = [];
+  const seen = new Set<string>();
+  let offset = 0;
+  const limit = 50;
+
+  while (true) {
+    if (signal?.aborted) {
+      const err = new Error("Aborted");
+      err.name = "AbortError";
+      throw err;
+    }
+
+    const response = await Spicetify.GraphQL.Request(def, {
+      offset,
+      limit,
+      onlyUnPlayedItems: false,
+      includedContentTypes: [],
+      includeEpisodeContentRatingsV2: true,
+    });
+
+    const feed = response?.data?.whatsNewFeedItems;
+    const items = feed?.items ?? [];
+    if (!items.length) break;
+
+    for (const item of items) {
+      const wrapper = item?.content;
+      const data = wrapper?.data ?? wrapper;
+      if (data?.__typename !== "Album") continue;
+      const uri = typeof data.uri === "string" ? data.uri : "";
+      if (!uri.startsWith("spotify:album:") || seen.has(uri)) continue;
+      seen.add(uri);
+
+      const artistItems = data.artists?.items ?? [];
+      const artists: { uri: string; name: string }[] = [];
+      for (const entry of artistItems) {
+        const aUri = typeof entry?.uri === "string" ? entry.uri : "";
+        const name = entry?.profile?.name?.trim?.() ?? "";
+        if (!aUri && !name) continue;
+        artists.push({ uri: aUri, name: name || aUri });
+      }
+
+      albums.push({
+        uri,
+        name: typeof data.name === "string" ? data.name : "",
+        albumType: typeof data.albumType === "string" ? data.albumType : "",
+        timestamp: item?.timestamp?.isoString ?? data?.date?.isoString ?? "",
+        artists,
+      });
+    }
+
+    const nextOffset = feed?.pagingInfo?.nextOffset;
+    if (typeof nextOffset !== "number" || nextOffset <= offset) break;
+    offset = nextOffset;
+  }
+
+  return albums;
 }
 
 export async function getTracksFromDiscography(

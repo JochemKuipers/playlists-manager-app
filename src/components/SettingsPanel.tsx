@@ -242,6 +242,19 @@ export function SettingsPanel() {
             />
             <span>DJ remixes (keep if remixer/co-artist followed)</span>
           </label>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              checked={settings.skipAiArtists}
+              onChange={(e) =>
+                persist({ ...settings, skipAiArtists: e.target.checked })
+              }
+            />
+            <span>
+              Block AI artists (What&apos;s New) — SoulOverAI + CennoxX +
+              Zoundhub (≥80)
+            </span>
+          </label>
 
           <div className={styles.settingsBlock}>
             <h3 className={styles.settingsSubTitle}>Custom regex</h3>

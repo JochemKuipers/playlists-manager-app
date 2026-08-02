@@ -10,8 +10,9 @@ import type {
   OpResult,
   ProgressEvent,
 } from "@/operations/types";
-import { LIKED_SONGS_URI } from "@/operations/types";
+import { LIKED_SONGS_URI, WHATS_NEW_URI } from "@/operations/types";
 import { updatePlaylist } from "@/operations/update";
+import { syncWhatsNew } from "@/operations/whatsNew";
 
 export type BatchCallbacks = {
   onProgress: (event: ProgressEvent) => void;
@@ -26,6 +27,13 @@ export async function runBatch(options: {
   callbacks: BatchCallbacks;
 }): Promise<OpResult[]> {
   const { kind, uris, signal, callbacks } = options;
+
+  if (kind === "whatsNew") {
+    callbacks.onItemStart(WHATS_NEW_URI);
+    const result = await syncWhatsNew(callbacks.onProgress, signal);
+    callbacks.onItemDone(result);
+    return [result];
+  }
 
   if (kind === "clean" && uris.length === 1 && uris[0] === LIKED_SONGS_URI) {
     callbacks.onItemStart(LIKED_SONGS_URI);

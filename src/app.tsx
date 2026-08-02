@@ -89,14 +89,15 @@ function App() {
     void loadPlaylists();
   }, []);
 
-  const targetCount = mode === "liked" ? 1 : selected.size;
+  const targetCount =
+    operation === "whatsNew" || mode === "liked" ? 1 : selected.size;
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <h1 className={styles.title}>Playlist Manager</h1>
         <p className={styles.subtitle}>
-          Update artist playlists from discography, clean duplicates, and like
+          Update artist playlists, sync What's New, clean duplicates, and like
           missing tracks — across your library in parallel.
         </p>
       </header>

@@ -9,10 +9,31 @@
   overflow: hidden;
   color: var(--spice-text);
   background:
-    radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in srgb, var(--spice-button) 22%, transparent), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in srgb, var(--spice-main-elevated, var(--spice-card)) 80%, transparent), transparent),
+    radial-gradient(
+      ellipse 80% 50% at 10% -10%,
+      color-mix(in srgb, var(--spice-button) 22%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 0%,
+      color-mix(
+        in srgb,
+        var(--spice-main-elevated, var(--spice-card)) 80%,
+        transparent
+      ),
+      transparent
+    ),
     var(--spice-main);
-  font-family: var(--font-family, CircularSp, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl, CircularSp-Grek, CircularSp-Deva, var(--fallback-fonts, sans-serif));
+  font-family: var(
+    --font-family,
+    CircularSp,
+    CircularSp-Arab,
+    CircularSp-Hebr,
+    CircularSp-Cyrl,
+    CircularSp-Grek,
+    CircularSp-Deva,
+    var(--fallback-fonts, sans-serif)
+  );
 }
 
 .header {
@@ -67,8 +88,13 @@
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--spice-highlight-elevated, var(--spice-card)) 70%, transparent);
-  border: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 25%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--spice-highlight-elevated, var(--spice-card)) 70%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 25%, transparent);
 }
 
 .segBtn {
@@ -81,7 +107,10 @@
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 160ms ease, color 160ms ease, transform 120ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 120ms ease;
 }
 
 .segBtn:hover:not(:disabled) {
@@ -116,7 +145,10 @@
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    opacity 120ms ease;
 }
 
 .primaryBtn {
@@ -125,13 +157,22 @@
 }
 
 .secondaryBtn {
-  background: color-mix(in srgb, var(--spice-highlight-elevated, var(--spice-card)) 90%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--spice-highlight-elevated, var(--spice-card)) 90%,
+    transparent
+  );
   color: var(--spice-text);
-  border: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 30%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 30%, transparent);
 }
 
 .dangerBtn {
-  background: color-mix(in srgb, var(--spice-notification-error, #e22134) 85%, #000);
+  background: color-mix(
+    in srgb,
+    var(--spice-notification-error, #e22134) 85%,
+    #000
+  );
   color: #fff;
 }
 
@@ -181,8 +222,13 @@
 }
 
 .panel {
-  background: color-mix(in srgb, var(--spice-card, var(--spice-main-elevated)) 88%, transparent);
-  border: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 22%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--spice-card, var(--spice-main-elevated)) 88%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 22%, transparent);
   border-radius: 16px;
   padding: 14px;
   display: flex;
@@ -270,7 +316,9 @@
   cursor: pointer;
   text-align: left;
   color: inherit;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
@@ -325,6 +373,7 @@
   line-height: 1.25;
   height: 2.5em;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -384,7 +433,11 @@
 }
 
 .badgeFailed {
-  background: color-mix(in srgb, var(--spice-notification-error, #e22134) 35%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--spice-notification-error, #e22134) 35%,
+    transparent
+  );
   color: var(--spice-notification-error, #ff6b7a);
 }
 
@@ -538,9 +591,18 @@
 .errorBanner {
   padding: 12px 14px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--spice-notification-error, #e22134) 22%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--spice-notification-error, #e22134) 22%,
+    transparent
+  );
   color: var(--spice-text);
-  border: 1px solid color-mix(in srgb, var(--spice-notification-error, #e22134) 45%, transparent);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--spice-notification-error, #e22134) 45%,
+      transparent
+    );
   flex-shrink: 0;
 }
 
@@ -599,7 +661,8 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 22%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 22%, transparent);
 }
 
 .settingsSubTitle {
@@ -632,7 +695,8 @@
 
 .textInput {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 30%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--spice-misc, var(--spice-subtext)) 30%, transparent);
   background: color-mix(in srgb, var(--spice-highlight) 22%, transparent);
   color: var(--spice-text);
   border-radius: 8px;
