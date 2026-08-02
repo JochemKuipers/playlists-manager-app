@@ -256,7 +256,6 @@ export function requestStop(): void {
 }
 
 export function getTargetUris(): string[] {
-  if (data.operation === "whatsNew") return [WHATS_NEW_URI];
   if (data.mode === "liked") return [LIKED_SONGS_URI];
   return [...data.selected];
 }

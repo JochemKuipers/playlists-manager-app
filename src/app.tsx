@@ -8,6 +8,7 @@ import { ProgressPanel } from "@/components/ProgressPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { runBatch } from "@/operations/batch";
 import type { OperationKind } from "@/operations/types";
+import { WHATS_NEW_URI } from "@/operations/types";
 import { startWhatsNewAutoSync } from "@/operations/whatsNewAuto";
 import {
   beginRun,
@@ -37,7 +38,9 @@ async function loadPlaylists() {
 }
 
 async function startOperation(operation: OperationKind) {
-  const uris = getTargetUris();
+  // What's New is a one-shot action — not store.operation / selection driven
+  const uris =
+    operation === "whatsNew" ? [WHATS_NEW_URI] : getTargetUris();
   if (uris.length === 0) return;
 
   const signal = beginRun(uris);
