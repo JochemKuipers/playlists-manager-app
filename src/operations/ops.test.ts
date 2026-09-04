@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { getTrackToKeepIndex } from "./duplicates";
 import { addDurationEntry, shouldSkipAddingTrack } from "./normalize";
-import { isRemixTitle, validatePattern } from "./trackFilters";
+import { isLiveVersion, isRemixTitle, validatePattern } from "./trackFilters";
 import type { DuplicateGroup, PlaylistTrack } from "./types";
 
 function track(
@@ -61,5 +61,19 @@ describe("trackFilters", () => {
   test("validatePattern rejects overlong", () => {
     expect(validatePattern("a".repeat(81)).ok).toBe(false);
     expect(validatePattern("\\blive\\b").ok).toBe(true);
+  });
+
+  test("isLiveVersion ignores LIVE FOREVER studio titles", () => {
+    expect(isLiveVersion("live forever", "LIVE FOREVER")).toBe(false);
+    expect(isLiveVersion("angeldust", "LIVE FOREVER")).toBe(false);
+    expect(isLiveVersion("Alive")).toBe(false);
+  });
+
+  test("isLiveVersion matches real live markers", () => {
+    expect(isLiveVersion("Song (Live)")).toBe(true);
+    expect(isLiveVersion("Song - Live")).toBe(true);
+    expect(isLiveVersion("Live at Wembley")).toBe(true);
+    expect(isLiveVersion("Song", "Live")).toBe(true);
+    expect(isLiveVersion("Song", "Greatest Hits Live")).toBe(true);
   });
 });

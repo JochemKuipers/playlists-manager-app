@@ -71,8 +71,9 @@ export function validatePattern(source: string): {
 }
 
 const LIVE_RE =
-  /\b(live(\s+(at|from|in|on|version|recording|session|performance))?|recorded\s+live|live\s+version)\b/i;
+  /\b(live\s+(at|from|in|on|version|recording|session|performance)|recorded\s+live|live\s+version)\b/i;
 const LIVE_PAREN_RE = /[([\-–—]\s*live\b/i;
+const LIVE_BARE_END_RE = /(^|[\s([\-–—])live\s*$/i;
 
 const SPED_RE =
   /\b(sped\s*up|speed\s*up|slowed(\s*(\+|&|and)\s*reverb)?|slowed\s*down|nightcore|daycore|super\s*slowed)\b/i;
@@ -132,8 +133,10 @@ export function creditNames(artists: FilterableTrack["artists"]): string[] {
 export function isLiveVersion(title: string, albumName = ""): boolean {
   const hay = `${title} ${albumName}`.trim();
   if (!hay) return false;
-  // Avoid matching "Alive", "Olive", etc. via paren/dash forms + word-ish live phrases
-  return LIVE_PAREN_RE.test(hay) || LIVE_RE.test(hay);
+  if (LIVE_PAREN_RE.test(hay) || LIVE_RE.test(hay)) return true;
+  return (
+    LIVE_BARE_END_RE.test(title.trim()) || LIVE_BARE_END_RE.test(albumName.trim())
+  );
 }
 
 export function isSpedOrSlowed(title: string, albumName = ""): boolean {
