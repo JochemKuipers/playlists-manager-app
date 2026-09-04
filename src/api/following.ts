@@ -1,73 +1,97 @@
 /**
  * Followed artist names for remix whitelist.
- * Tries Platform LibraryAPI first, then session Web API via CosmosAsync.
+ * LibraryAPI only — CosmosAsync /me/following 429s on current Spotify.
  */
-export async function fetchFollowedArtistNames(): Promise<string[]> {
-  const names = new Set<string>();
 
-  const pushName = (value: unknown) => {
-    if (typeof value === "string" && value.trim()) names.add(value.trim());
-  };
+const PAGE = 50;
+const TTL_MS = 5 * 60 * 1000;
+
+type LibraryArtists = {
+  getArtists?: (opts: {
+    limit: number;
+    offset?: number;
+  }) => Promise<{ items?: unknown[] }>;
+  getContents?: (opts: Record<string, unknown>) => Promise<{
+    items?: unknown[];
+  }>;
+};
+
+let cached: { names: string[]; at: number } | null = null;
+let inflight: Promise<string[]> | null = null;
+
+function pushName(names: Set<string>, value: unknown) {
+  if (typeof value === "string" && value.trim()) names.add(value.trim());
+}
+
+function itemName(item: unknown): unknown {
+  if (!item || typeof item !== "object") return undefined;
+  const row = item as Record<string, unknown>;
+  const nested = row.item ?? row.artist ?? row.data;
+  if (typeof row.name === "string") return row.name;
+  if (nested && typeof nested === "object") {
+    const n = nested as Record<string, unknown>;
+    const profile = n.profile as Record<string, unknown> | undefined;
+    return n.name ?? profile?.name;
+  }
+  return undefined;
+}
+
+async function paginate(
+  fetchPage: (offset: number) => Promise<unknown[]>,
+): Promise<unknown[]> {
+  const items: unknown[] = [];
+  for (let offset = 0; offset < PAGE * 200; offset += PAGE) {
+    const page = await fetchPage(offset);
+    if (!page.length) break;
+    items.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return items;
+}
+
+async function loadFollowedArtistNames(): Promise<string[]> {
+  const names = new Set<string>();
+  const lib = Spicetify.Platform?.LibraryAPI as LibraryArtists | undefined;
 
   try {
-    const lib = Spicetify.Platform?.LibraryAPI as
-      | {
-          getArtists?: (opts: {
-            limit: number;
-            offset?: number;
-          }) => Promise<{ items?: Array<{ name?: string }> }>;
-          getContents?: (opts: Record<string, unknown>) => Promise<{
-            items?: Array<{ name?: string; type?: string }>;
-          }>;
-        }
-      | undefined;
-
     if (typeof lib?.getArtists === "function") {
-      const res = await lib.getArtists({ limit: -1, offset: 0 });
-      for (const item of res?.items ?? []) pushName(item?.name);
+      const items = await paginate(async (offset) => {
+        const res = await lib.getArtists!({ limit: PAGE, offset });
+        return res?.items ?? [];
+      });
+      for (const item of items) pushName(names, itemName(item));
     }
 
     if (names.size === 0 && typeof lib?.getContents === "function") {
-      // filters: "2" is artists in several Spotify client builds
-      const res = await lib.getContents({
-        filters: ["2"],
-        offset: 0,
-        limit: -1,
+      const items = await paginate(async (offset) => {
+        const res = await lib.getContents!({
+          filters: ["2"],
+          offset,
+          limit: PAGE,
+        });
+        return res?.items ?? [];
       });
-      for (const item of res?.items ?? []) {
-        if (!item?.type || /artist/i.test(item.type)) pushName(item?.name);
-      }
+      for (const item of items) pushName(names, itemName(item));
     }
   } catch (error) {
     console.warn("[WARN] LibraryAPI followed artists failed:", error);
   }
 
-  if (names.size > 0) return [...names];
-
-  try {
-    let after: string | undefined;
-    for (let page = 0; page < 40; page++) {
-      const params = new URLSearchParams({
-        type: "artist",
-        limit: "50",
-      });
-      if (after) params.set("after", after);
-
-      const res = await Spicetify.CosmosAsync.get(
-        `https://api.spotify.com/v1/me/following?${params.toString()}`,
-      );
-      const block = res?.artists;
-      for (const item of block?.items ?? []) pushName(item?.name);
-
-      after =
-        typeof block?.cursors?.after === "string"
-          ? block.cursors.after
-          : undefined;
-      if (!after || !(block?.items?.length > 0)) break;
-    }
-  } catch (error) {
-    console.warn("[WARN] Web API followed artists failed:", error);
-  }
-
   return [...names];
+}
+
+export async function fetchFollowedArtistNames(): Promise<string[]> {
+  if (cached && Date.now() - cached.at < TTL_MS) return cached.names;
+  if (inflight) return inflight;
+
+  inflight = loadFollowedArtistNames()
+    .then((names) => {
+      cached = { names, at: Date.now() };
+      return names;
+    })
+    .finally(() => {
+      inflight = null;
+    });
+
+  return inflight;
 }

@@ -1,3 +1,4 @@
+import { fetchFollowedArtistNames } from "@/api/following";
 import { cleanLikedSongs, cleanPlaylist } from "@/operations/clean";
 import {
   buildLikedSongsIndex,
@@ -13,6 +14,7 @@ import type {
 import { LIKED_SONGS_URI, WHATS_NEW_URI } from "@/operations/types";
 import { updatePlaylist } from "@/operations/update";
 import { syncWhatsNew } from "@/operations/whatsNew";
+import { loadIgnoreSettings } from "@/settings";
 
 export type BatchCallbacks = {
   onProgress: (event: ProgressEvent) => void;
@@ -57,8 +59,16 @@ export async function runBatch(options: {
     });
   }
 
-  // ponytail: pool 3 (likeMissing=1 for shared index), raise if Spotify rate-limits
-  const concurrency = kind === "likeMissing" ? 1 : 3;
+  // Warm LibraryAPI following cache once (skipDjRemixes); never CosmosAsync.
+  if (
+    (kind === "update" || kind === "clean") &&
+    loadIgnoreSettings().skipDjRemixes
+  ) {
+    await fetchFollowedArtistNames();
+  }
+
+  // ponytail: update=2 (pathfinder 429s); GraphQL also capped in graphql.ts
+  const concurrency = kind === "likeMissing" ? 1 : kind === "update" ? 2 : 3;
 
   return mapInChunks(
     uris,

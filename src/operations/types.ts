@@ -84,7 +84,7 @@ export type LikedSongsIndex = {
 
 export const DURATION_TOLERANCE_MS = 5000;
 export const API_BATCH_SIZE = 50;
-export const ALBUM_FETCH_CONCURRENCY = 12;
+export const ALBUM_FETCH_CONCURRENCY = 3;
 
 export const LIKED_SONGS_URI = "spotify:collection:tracks";
 export const WHATS_NEW_URI = "spotify:whats-new";

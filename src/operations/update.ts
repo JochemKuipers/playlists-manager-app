@@ -93,10 +93,30 @@ export async function updatePlaylist(
     );
 
     const trackBatches = await abortable(
-      Promise.all(artistUris.map((uri) => getArtistTracks(uri))),
+      Promise.all(
+        artistUris.map(async (uri, i) => {
+          try {
+            return await getArtistTracks(uri);
+          } catch (error) {
+            emit(
+              `Discography failed for ${artistNames[i] ?? uri}`,
+              "skip",
+            );
+            console.warn(`[WARN] getArtistTracks failed for ${uri}:`, error);
+            return [] as ArtistTrack[];
+          }
+        }),
+      ),
       signal,
     );
     const allArtistTracks = trackBatches.flat();
+    if (allArtistTracks.length === 0) {
+      return {
+        playlistUri,
+        ok: false,
+        message: "Could not load any artist tracks",
+      };
+    }
     emit(`Fetched ${allArtistTracks.length} artist track(s)`, "info", 0.55);
 
     throwIfAborted(signal);

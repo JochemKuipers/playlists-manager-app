@@ -2,8 +2,110 @@ import { getArtistIdFromUri } from "@/operations/normalize";
 import type { ArtistAlbum, ArtistTrack } from "@/operations/types";
 import { ALBUM_FETCH_CONCURRENCY } from "@/operations/types";
 
+const MAX_GQL = 2;
+const GQL_RETRIES = 5;
+let gqlActive = 0;
+const gqlWaiters: Array<() => void> = [];
+
+function acquireGql(): Promise<void> {
+  if (gqlActive < MAX_GQL) {
+    gqlActive += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    gqlWaiters.push(() => {
+      gqlActive += 1;
+      resolve();
+    });
+  });
+}
+
+function releaseGql() {
+  gqlActive -= 1;
+  gqlWaiters.shift()?.();
+}
+
+function isRateLimited(error: unknown): boolean {
+  const err = error as {
+    status?: number;
+    statusCode?: number;
+    message?: string;
+  };
+  const status = err?.status ?? err?.statusCode;
+  if (status === 429) return true;
+  return /429|Too Many Requests/i.test(String(err?.message ?? error));
+}
+
+async function graphqlRequest(
+  def: unknown,
+  variables: Record<string, unknown>,
+): Promise<any> {
+  await acquireGql();
+  try {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < GQL_RETRIES; attempt++) {
+      try {
+        return await Spicetify.GraphQL.Request(def, variables);
+      } catch (error) {
+        lastError = error;
+        if (!isRateLimited(error) || attempt === GQL_RETRIES - 1) throw error;
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      }
+    }
+    throw lastError;
+  } finally {
+    releaseGql();
+  }
+}
+
+export type ArtistSearchHit = { uri: string; name: string };
+
+export function pickArtistUri(
+  hits: ArtistSearchHit[],
+  artistName: string,
+): string | null {
+  const q = artistName.trim().toLowerCase();
+  const exact = hits.find((h) => h.name.trim().toLowerCase() === q);
+  return exact?.uri ?? hits[0]?.uri ?? null;
+}
+
+function artistHitsFromSearch(response: unknown): ArtistSearchHit[] {
+  const hits: ArtistSearchHit[] = [];
+  const seen = new Set<string>();
+  const push = (uri: unknown, name: unknown) => {
+    if (typeof uri !== "string" || !uri.startsWith("spotify:artist:")) return;
+    if (seen.has(uri)) return;
+    seen.add(uri);
+    hits.push({
+      uri,
+      name: typeof name === "string" ? name : "",
+    });
+  };
+
+  const data = (response as { data?: Record<string, unknown> })?.data;
+  const search = (data?.searchV2 ?? data?.search) as
+    | Record<string, unknown>
+    | undefined;
+
+  for (const entry of (search?.topResultsV2 as { itemsV2?: unknown[] })
+    ?.itemsV2 ?? []) {
+    const row = entry as Record<string, unknown>;
+    const d = ((row.item as Record<string, unknown> | undefined)?.data ??
+      row.data ??
+      row) as Record<string, unknown>;
+    const profile = d.profile as { name?: string } | undefined;
+    push(d.uri, profile?.name ?? d.name);
+  }
+  for (const item of (search?.artists as { items?: unknown[] })?.items ?? []) {
+    const row = item as Record<string, unknown>;
+    const d = (row.data ?? row) as Record<string, unknown>;
+    const profile = d.profile as { name?: string } | undefined;
+    push(d.uri, profile?.name ?? d.name);
+  }
+  return hits;
+}
+
 export async function searchArtist(artistName: string): Promise<string | null> {
-  const normalizedQuery = artistName.trim().toLowerCase();
   const def = Spicetify.GraphQL.Definitions?.assistedCurationSearch;
   if (!def) {
     console.warn("[WARN] assistedCurationSearch definition missing");
@@ -11,48 +113,12 @@ export async function searchArtist(artistName: string): Promise<string | null> {
   }
 
   try {
-    const response = await Spicetify.GraphQL.Request(def, {
+    const response = await graphqlRequest(def, {
       term: artistName,
       limit: 10,
       numberOfTopResults: 10,
     });
-
-    const artistUris: string[] = [];
-    const pushArtistUri = (uri: unknown) => {
-      if (
-        typeof uri === "string" &&
-        uri.startsWith("spotify:artist:") &&
-        !artistUris.includes(uri)
-      ) {
-        artistUris.push(uri);
-      }
-    };
-
-    for (const entry of response?.data?.searchV2?.topResultsV2?.itemsV2 ?? []) {
-      pushArtistUri(entry?.item?.data?.uri);
-    }
-    for (const item of response?.data?.searchV2?.artists?.items ?? []) {
-      pushArtistUri(item?.data?.uri);
-    }
-
-    if (artistUris.length === 0) return null;
-
-    const minimalDef = Spicetify.GraphQL.Definitions?.queryArtistMinimal;
-    if (minimalDef) {
-      for (const uri of artistUris) {
-        try {
-          const { data } = await Spicetify.GraphQL.Request(minimalDef, { uri });
-          const name = data?.artistUnion?.profile?.name
-            ?.trim?.()
-            ?.toLowerCase?.();
-          if (name === normalizedQuery) return uri;
-        } catch {
-          // fall through
-        }
-      }
-    }
-
-    return artistUris[0] ?? null;
+    return pickArtistUri(artistHitsFromSearch(response), artistName);
   } catch (error) {
     console.warn(`[WARN] Artist search failed for ${artistName}:`, error);
     return null;
@@ -73,7 +139,7 @@ export async function getArtistDiscography(
   }
 
   while (hasNextPage) {
-    const response = await Spicetify.GraphQL.Request(artistAlbumQuery, {
+    const response = await graphqlRequest(artistAlbumQuery, {
       uri: `spotify:artist:${artistId}`,
       offset,
       limit: 50,
@@ -177,7 +243,7 @@ async function fetchAlbumTracks(
     : `spotify:album:${album.id}`;
 
   while (hasNextPage) {
-    const { data, errors } = await Spicetify.GraphQL.Request(queryAlbumTracks, {
+    const { data, errors } = await graphqlRequest(queryAlbumTracks, {
       uri: albumUri,
       offset,
       limit: 50,
@@ -274,7 +340,7 @@ export async function fetchWhatsNewFeed(
       throw err;
     }
 
-    const response = await Spicetify.GraphQL.Request(def, {
+    const response = await graphqlRequest(def, {
       offset,
       limit,
       onlyUnPlayedItems: false,
@@ -396,7 +462,7 @@ export async function markWhatsNewItemsSeen(ids: string[]): Promise<void> {
     let lastError: unknown;
     for (const vars of candidates) {
       try {
-        await Spicetify.GraphQL.Request(def, vars);
+        await graphqlRequest(def, vars);
         ok = true;
         break;
       } catch (error) {
@@ -430,9 +496,22 @@ export async function getTracksFromDiscography(
   for (let i = 0; i < discography.length; i += ALBUM_FETCH_CONCURRENCY) {
     const chunk = discography.slice(i, i + ALBUM_FETCH_CONCURRENCY);
     const batches = await Promise.all(
-      chunk.map((album) =>
-        fetchAlbumTracks(album, artistUri, artistId, queryAlbumTracks),
-      ),
+      chunk.map(async (album) => {
+        try {
+          return await fetchAlbumTracks(
+            album,
+            artistUri,
+            artistId,
+            queryAlbumTracks,
+          );
+        } catch (error) {
+          console.warn(
+            `[WARN] Album tracks failed for ${album.name || album.id}:`,
+            error,
+          );
+          return [] as ArtistTrack[];
+        }
+      }),
     );
     for (const batch of batches) {
       for (const track of batch) {
@@ -573,7 +652,7 @@ export async function searchTracks(
 
   for (const { def, vars } of candidates) {
     try {
-      const response = await Spicetify.GraphQL.Request(def, vars);
+      const response = await graphqlRequest(def, vars);
       const parsed = parseSearchTrackItems(response);
       if (parsed.length > 0) return parsed;
     } catch (error) {
