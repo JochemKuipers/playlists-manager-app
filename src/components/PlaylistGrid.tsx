@@ -1,5 +1,4 @@
-import Fuse from "fuse.js";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getLikedSongsTrackCount } from "@/api/library";
 import type { ItemStatus, PlaylistCard } from "@/operations/types";
 import { LIKED_SONGS_IMAGE_URL, LIKED_SONGS_URI } from "@/operations/types";
@@ -14,10 +13,9 @@ import styles from "../css/app.module.scss";
 // Spicetify creator bundles with classic JSX (needs React in scope).
 void React;
 
-const FUSE_OPTS: import("fuse.js").IFuseOptions<PlaylistCard> = {
-  keys: ["name"],
-  threshold: 0.4,
-};
+function nameMatches(name: string, q: string): boolean {
+  return q === "" || name.toLowerCase().includes(q);
+}
 
 function statusClass(status: ItemStatus): string {
   switch (status) {
@@ -162,8 +160,7 @@ export function PlaylistGrid() {
     };
   }, [mode, running]);
 
-  const fuse = useMemo(() => new Fuse(playlists, FUSE_OPTS), [playlists]);
-  const q = playlistQuery.trim();
+  const q = playlistQuery.trim().toLowerCase();
 
   if (loadError) {
     return <div className={styles.errorBanner}>{loadError}</div>;
@@ -181,8 +178,7 @@ export function PlaylistGrid() {
       imageUrl: LIKED_SONGS_IMAGE_URL,
       owned: true,
     };
-    const show =
-      q === "" || new Fuse([likedCard], FUSE_OPTS).search(q).length > 0;
+    const show = nameMatches(likedCard.name, q);
 
     return (
       <>
@@ -210,7 +206,7 @@ export function PlaylistGrid() {
     return <div className={styles.empty}>No owned playlists found.</div>;
   }
 
-  const filtered = q === "" ? playlists : fuse.search(q).map((r) => r.item);
+  const filtered = playlists.filter((card) => nameMatches(card.name, q));
   const selectable = !running;
 
   return (
